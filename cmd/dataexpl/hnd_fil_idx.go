@@ -7,6 +7,7 @@ import (
 	"github.com/ipfs/go-cid"
 	"html/template"
 	"net/http"
+	"sort"
 	"strconv"
 	"sync"
 
@@ -59,6 +60,122 @@ func (h *dxhnd) handleDeals(w http.ResponseWriter, r *http.Request) {
 	data := map[string]interface{}{
 		"deals":             deals,
 		"StorageDealActive": storagemarket.StorageDealActive,
+	}
+	if err := tpl.Execute(w, data); err != nil {
+		fmt.Println(err)
+		return
+	}
+}
+
+func (h *dxhnd) handleClients(w http.ResponseWriter, r *http.Request) {
+	deals, err := h.api.StateMarketDeals(r.Context(), types.EmptyTSK)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	type dealMeta struct {
+		Count int64
+		Data  abi.PaddedPieceSize
+	}
+
+	clients := map[address.Address]dealMeta{}
+
+	for _, deal := range deals {
+		clients[deal.Proposal.Client] = dealMeta{
+			Count: clients[deal.Proposal.Client].Count + 1,
+			Data:  clients[deal.Proposal.Client].Data + deal.Proposal.PieceSize,
+		}
+	}
+
+	type clEntry struct {
+		Addr  address.Address
+		Count int64
+		Data  string
+	}
+
+	clEnts := make([]clEntry, 0, len(clients))
+	for a, meta := range clients {
+		clEnts = append(clEnts, clEntry{
+			Addr:  a,
+			Count: meta.Count,
+			Data:  types.SizeStr(types.NewInt(uint64(meta.Data))),
+		})
+	}
+	sort.Slice(clEnts, func(i, j int) bool {
+		return clEnts[i].Count > clEnts[j].Count
+	})
+
+	tpl, err := template.ParseFS(dres, "dexpl/clients.gohtml")
+	if err != nil {
+		fmt.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+
+	data := map[string]interface{}{
+		"clients": clEnts,
+	}
+	if err := tpl.Execute(w, data); err != nil {
+		fmt.Println(err)
+		return
+	}
+}
+
+func (h *dxhnd) handleClient(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	ma, err := address.NewFromString(vars["id"])
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	deals, err := h.api.StateMarketDeals(r.Context(), types.EmptyTSK)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	type provMeta struct {
+		Prov address.Address
+		Data string
+		Deal abi.DealID
+	}
+
+	clDeals := make([]provMeta, 0)
+
+	for did, deal := range deals {
+		if deal.Proposal.Client == ma {
+			d, _ := strconv.ParseInt(did, 10, 64)
+
+			clDeals = append(clDeals, provMeta{
+				Prov: deal.Proposal.Provider,
+				Data: types.SizeStr(types.NewInt(uint64(deal.Proposal.PieceSize))),
+				Deal: abi.DealID(d),
+			})
+		}
+	}
+
+	sort.Slice(clDeals, func(i, j int) bool {
+		if clDeals[i].Prov.String() == clDeals[j].Prov.String() {
+			return clDeals[i].Deal > clDeals[j].Deal
+		}
+		return clDeals[i].Prov.String() < clDeals[j].Prov.String()
+	})
+
+	tpl, err := template.ParseFS(dres, "dexpl/client.gohtml")
+	if err != nil {
+		fmt.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+
+	data := map[string]interface{}{
+		"deals": clDeals,
 	}
 	if err := tpl.Execute(w, data); err != nil {
 		fmt.Println(err)
@@ -171,7 +288,7 @@ func (h *dxhnd) handleDeal(w http.ResponseWriter, r *http.Request) {
 
 	{
 		// get left side of the dag up to typeCheckDepth
-		g := getFilRetrieval(h.apiBss, h.api, r, d.Proposal.Provider, d.Proposal.PieceCID, dcid)
+		g := getFilRetrieval(h.tempBsBld, h.apiBss, h.api, r, d.Proposal.Provider, d.Proposal.PieceCID, dcid)
 
 		ssb := builder.NewSelectorSpecBuilder(basicnode.Prototype.Any)
 		root, dserv, _, done, err := g(ssb.ExploreRecursive(selector.RecursionLimitDepth(typeCheckDepth),

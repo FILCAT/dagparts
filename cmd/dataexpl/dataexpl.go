@@ -5,6 +5,7 @@ import (
 	"context"
 	"embed"
 	"fmt"
+	"github.com/filecoin-project/cidtravel/ctbstore"
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/lotus/node/repo"
 	"github.com/ipfs/go-cid"
@@ -17,6 +18,7 @@ import (
 	"mime"
 	"net"
 	"net/http"
+	"os"
 	gopath "path"
 	"sort"
 	"sync"
@@ -61,6 +63,8 @@ type dxhnd struct {
 
 	mminers   []marketMiner
 	minerPids map[peer.ID]address.Address
+
+	tempBsBld *ctbstore.TempBsb
 }
 
 func (h *dxhnd) handleIndex(w http.ResponseWriter, r *http.Request) {
@@ -130,7 +134,12 @@ func (h *dxhnd) handleCar(w http.ResponseWriter, r *http.Request) {
 var dataexplCmd = &cli.Command{
 	Name:  "run",
 	Usage: "Explore data stored on filecoin",
-	Flags: []cli.Flag{},
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:  "blk-cache",
+			Value: os.TempDir(),
+		},
+	},
 	Action: func(cctx *cli.Context) error {
 		api, closer, err := cliutil.GetFullNodeAPIV1(cctx)
 		if err != nil {
@@ -218,7 +227,8 @@ var dataexplCmd = &cli.Command{
 			mminers:   mminers,
 			minerPids: pidMiners,
 
-			apiBss: apiBss,
+			apiBss:    apiBss,
+			tempBsBld: ctbstore.NewTempBsBuilder(cctx.String("blk-cache")),
 		}
 
 		m := mux.NewRouter()
@@ -237,6 +247,8 @@ var dataexplCmd = &cli.Command{
 		m.HandleFunc("/ping/peer/ipfs/{id}", dh.handlePingIPFS).Methods("GET")
 		m.HandleFunc("/ping/peer/lotus/{id}", dh.handlePingLotus).Methods("GET")
 		m.HandleFunc("/deals", dh.handleDeals).Methods("GET")
+		m.HandleFunc("/clients", dh.handleClients).Methods("GET")
+		m.HandleFunc("/client/{id}", dh.handleClient).Methods("GET")
 		m.HandleFunc("/minersectors/{id}", dh.handleMinerSectors).Methods("GET")
 
 		m.HandleFunc("/deal/{id}", dh.handleDeal).Methods("GET")
