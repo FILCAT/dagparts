@@ -1,0 +1,17 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Client list - Data Explorer</title>
+    <link rel="stylesheet" href="/static/root.css">
+</head>
+<body>
+<div>
+    {{range .clients}}
+        <div>
+            <a href="/client/{{.Addr}}">{{.Addr}}</a>
+            <span>{{.Count}} Deals ({{.Data}})</span>
+        </div>
+    {{end}}
+</div>
+</body>
+</html>

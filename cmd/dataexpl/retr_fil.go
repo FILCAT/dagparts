@@ -88,7 +88,7 @@ func getFilRetrieval(bsb *ctbstore.TempBsb, abs *apiBstoreServer, api lapi.FullN
 		eref, done, err := retrieveFil(r.Context(), api, &storeid, ma, pcid, dcid, &sel, func() {
 			bbs.Finalize()
 			if err := tbs.Release(); err != nil {
-				log.Errorw("release temp store", "error", )
+				log.Errorw("release temp store", "error")
 			}
 
 			log.Warnw("store released")

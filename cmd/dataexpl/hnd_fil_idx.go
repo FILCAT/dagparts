@@ -1,13 +1,15 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/filecoin-project/go-address"
 	cliutil "github.com/filecoin-project/lotus/cli/util"
 	"github.com/ipfs/go-cid"
 	"html/template"
 	"net/http"
-	"sort"
+	"os"
+	"path/filepath"
 	"strconv"
 	"sync"
 
@@ -68,25 +70,6 @@ func (h *dxhnd) handleDeals(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *dxhnd) handleClients(w http.ResponseWriter, r *http.Request) {
-	deals, err := h.api.StateMarketDeals(r.Context(), types.EmptyTSK)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	type dealMeta struct {
-		Count int64
-		Data  abi.PaddedPieceSize
-	}
-
-	clients := map[address.Address]dealMeta{}
-
-	for _, deal := range deals {
-		clients[deal.Proposal.Client] = dealMeta{
-			Count: clients[deal.Proposal.Client].Count + 1,
-			Data:  clients[deal.Proposal.Client].Data + deal.Proposal.PieceSize,
-		}
-	}
 
 	type clEntry struct {
 		Addr  address.Address
@@ -94,17 +77,19 @@ func (h *dxhnd) handleClients(w http.ResponseWriter, r *http.Request) {
 		Data  string
 	}
 
-	clEnts := make([]clEntry, 0, len(clients))
-	for a, meta := range clients {
-		clEnts = append(clEnts, clEntry{
-			Addr:  a,
-			Count: meta.Count,
-			Data:  types.SizeStr(types.NewInt(uint64(meta.Data))),
-		})
+	var clEnts []clEntry
+	cf, err := os.OpenFile(filepath.Join(h.clientMeta, "clients.json"), os.O_RDONLY, 0666)
+	if err != nil {
+		fmt.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
-	sort.Slice(clEnts, func(i, j int) bool {
-		return clEnts[i].Count > clEnts[j].Count
-	})
+	if err := json.NewDecoder(cf).Decode(&clEnts); err != nil {
+		fmt.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	cf.Close()
 
 	tpl, err := template.ParseFS(dres, "dexpl/clients.gohtml")
 	if err != nil {
@@ -132,12 +117,6 @@ func (h *dxhnd) handleClient(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	deals, err := h.api.StateMarketDeals(r.Context(), types.EmptyTSK)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
 	type provMeta struct {
 		Prov address.Address
 		Data string
@@ -146,24 +125,18 @@ func (h *dxhnd) handleClient(w http.ResponseWriter, r *http.Request) {
 
 	clDeals := make([]provMeta, 0)
 
-	for did, deal := range deals {
-		if deal.Proposal.Client == ma {
-			d, _ := strconv.ParseInt(did, 10, 64)
-
-			clDeals = append(clDeals, provMeta{
-				Prov: deal.Proposal.Provider,
-				Data: types.SizeStr(types.NewInt(uint64(deal.Proposal.PieceSize))),
-				Deal: abi.DealID(d),
-			})
-		}
+	cf, err := os.OpenFile(filepath.Join(h.clientMeta, fmt.Sprintf("cl-%s.json", ma)), os.O_RDONLY, 0666)
+	if err != nil {
+		fmt.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
-
-	sort.Slice(clDeals, func(i, j int) bool {
-		if clDeals[i].Prov.String() == clDeals[j].Prov.String() {
-			return clDeals[i].Deal > clDeals[j].Deal
-		}
-		return clDeals[i].Prov.String() < clDeals[j].Prov.String()
-	})
+	if err := json.NewDecoder(cf).Decode(&clDeals); err != nil {
+		fmt.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	cf.Close()
 
 	tpl, err := template.ParseFS(dres, "dexpl/client.gohtml")
 	if err != nil {

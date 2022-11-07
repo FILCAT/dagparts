@@ -19,6 +19,7 @@ func main() {
 		Version: build.BuildVersion,
 		Commands: []*cli.Command{
 			dataexplCmd,
+			computeClientMetaCmd,
 		},
 		Flags: []cli.Flag{
 			&cli.StringFlag{

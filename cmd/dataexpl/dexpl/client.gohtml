@@ -1,0 +1,17 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Client Deals - Data Explorer</title>
+    <link rel="stylesheet" href="/static/root.css">
+</head>
+<body>
+<div>
+    {{range .deals}}
+        <div>
+            <a href="/deal/{{.Deal}}">{{.Deal}}</a>
+            <span>with <a href="/minersectors/{{.Prov}}">{{.Prov}}</a> ({{.Data}})</span>
+        </div>
+    {{end}}
+</div>
+</body>
+</html>

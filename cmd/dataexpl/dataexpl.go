@@ -59,6 +59,8 @@ type dxhnd struct {
 	ainfo  cliutil.APIInfo
 	apiBss *apiBstoreServer
 
+	clientMeta string
+
 	idx *finderhttpclient.Client
 
 	mminers   []marketMiner
@@ -138,6 +140,11 @@ var dataexplCmd = &cli.Command{
 		&cli.StringFlag{
 			Name:  "blk-cache",
 			Value: os.TempDir(),
+		},
+		&cli.StringFlag{
+			Name:     "client-meta",
+			Required: true,
+			Aliases:  []string{"m"},
 		},
 	},
 	Action: func(cctx *cli.Context) error {
@@ -221,8 +228,9 @@ var dataexplCmd = &cli.Command{
 		dh := &dxhnd{
 			api:   api,
 			ainfo: ainfo,
+			idx:   idx,
 
-			idx: idx,
+			clientMeta: cctx.String("client-meta"),
 
 			mminers:   mminers,
 			minerPids: pidMiners,
