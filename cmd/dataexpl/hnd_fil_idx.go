@@ -209,7 +209,17 @@ func (h *dxhnd) handleMinerSectors(w http.ResponseWriter, r *http.Request) {
 	}
 	wg.Wait()
 
-	tpl, err := template.ParseFS(dres, "dexpl/sectors.gohtml")
+	now, err := h.api.ChainHead(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	tpl, err := template.New("sectors.gohtml").Funcs(map[string]interface{}{
+		"EpochTime": func(e abi.ChainEpoch) string {
+			return cliutil.EpochTime(now.Height(), e)
+		},
+	}).ParseFS(dres, "dexpl/sectors.gohtml")
 	if err != nil {
 		fmt.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)

@@ -170,6 +170,18 @@ a:hover {
     background: #454545;
 }
 
+.snum-sector-activation {
+    font-weight: normal;
+    font-size: 0.8em;
+    color: #96D18E;
+}
+
+.snum-sector-snap {
+    font-weight: normal;
+    font-size: 0.8em;
+    color: #A474AB;
+}
+
 .snum-deal {
     display: inline-block;
 }

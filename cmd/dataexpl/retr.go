@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
@@ -29,6 +30,8 @@ func findRoot(ctx context.Context, root cid.Cid, selspec builder.SelectorSpec, d
 		rsn,
 		nil,
 		func(p traversal.Progress, n ipld.Node, r traversal.VisitReason) error {
+
+			fmt.Printf("fr p %#v  r %c\n", p.Path, r)
 
 			links[p.LastBlock.Path.String()] = struct{}{}
 

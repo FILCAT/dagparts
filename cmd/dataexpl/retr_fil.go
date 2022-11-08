@@ -9,8 +9,10 @@ import (
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-merkledag"
+	basicnode "github.com/ipld/go-ipld-prime/node/basic"
 	"io"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -19,7 +21,6 @@ import (
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/ipld/go-ipld-prime/codec/dagjson"
 	"github.com/ipld/go-ipld-prime/traversal/selector/builder"
-	textselector "github.com/ipld/go-ipld-selector-text-lite"
 	"golang.org/x/xerrors"
 
 	"github.com/filecoin-project/go-fil-markets/retrievalmarket"
@@ -68,7 +69,7 @@ func getFilRetrieval(bsb *ctbstore.TempBsb, abs *apiBstoreServer, api lapi.FullN
 
 		sel, err := pathToSel(vars["path"], false, ss)
 		if err != nil {
-			return cid.Undef, nil, nil, nil, err
+			return cid.Undef, nil, nil, nil, xerrors.Errorf("filretr: %w", err)
 		}
 
 		tbs, err := bsb.MakeStore()
@@ -105,12 +106,16 @@ func getFilRetrieval(bsb *ctbstore.TempBsb, abs *apiBstoreServer, api lapi.FullN
 		bs := bstore.NewTieredBstore(cbs, bstore.NewMemory())
 		ds := merkledag.NewDAGService(blockservice.New(bs, offline.Exchange(bs)))
 
-		rs, err := textselector.SelectorSpecFromPath(textselector.Expression(vars["path"]), false, ss)
+		rs, err := SelectorSpecFromPath(Expression(vars["path"]), false, ss)
 		if err != nil {
 			return cid.Cid{}, nil, nil, nil, xerrors.Errorf("failed to parse path-selector: %w", err)
 		}
 
 		root, links, err := findRoot(r.Context(), dcid, rs, ds)
+		if err != nil {
+			return cid.Cid{}, nil, nil, nil, xerrors.Errorf("find root: %w", err)
+		}
+
 		return root, ds, links, done, err
 	}
 }
@@ -253,7 +258,7 @@ func retrieveFil(ctx context.Context, fapi lapi.FullNode, apiStore *lapi.RemoteS
 }
 
 func pathToSel(psel string, matchTraversal bool, sub builder.SelectorSpec) (lapi.Selector, error) {
-	rs, err := textselector.SelectorSpecFromPath(textselector.Expression(psel), matchTraversal, sub)
+	rs, err := SelectorSpecFromPath(Expression(psel), matchTraversal, sub)
 	if err != nil {
 		return "", xerrors.Errorf("failed to parse path-selector: %w", err)
 	}
@@ -266,4 +271,153 @@ func pathToSel(psel string, matchTraversal bool, sub builder.SelectorSpec) (lapi
 	fmt.Println(b.String())
 
 	return lapi.Selector(b.String()), nil
+}
+
+// PathValidCharset is the regular expression fully matching a valid textselector
+const PathValidCharset = `[- _0-9a-zA-Z\/\.~]`
+
+// Expression is a string-type input to SelectorSpecFromPath
+type Expression string
+
+var invalidChar = regexp.MustCompile(`[^` + PathValidCharset[1:len(PathValidCharset)-1] + `]`)
+
+func SelectorSpecFromPath(path Expression, matchPath bool, optionalSubselectorAtTarget builder.SelectorSpec) (builder.SelectorSpec, error) {
+	/*
+
+	   Path elem parsing
+	   * If first char is not `~`, then path elem is unixfs
+	   * If first char is `~`
+	   	* If second char is not `~` then path[1:] is ipld dm
+	   	* If second char is `~`
+	   		* If third char is `~` then path is unixfs path[2:]
+	   		* If third char is `i` then path is "~"+path[3:]
+
+
+	   /some/path -> ufs(some)/ufs(path)
+
+	   /~cb/~pa/file -> /cb/pa/ufs(file)
+
+	   /~~~ -> /ufs(~)
+
+	   /~~i -> /~
+
+	*/
+
+	if path == "/" {
+		return nil, fmt.Errorf("a standalone '/' is not a valid path")
+	} else if m := invalidChar.FindStringIndex(string(path)); m != nil {
+		return nil, fmt.Errorf("path string contains invalid character at offset %d", m[0])
+	}
+
+	ssb := builder.NewSelectorSpecBuilder(basicnode.Prototype.Any)
+
+	ss := optionalSubselectorAtTarget
+	// if nothing is given - use an exact matcher
+	if ss == nil {
+		ss = ssb.Matcher()
+	}
+
+	segments := strings.Split(string(path), "/")
+
+	// walk backwards wrapping the original selector recursively
+	for i := len(segments) - 1; i >= 0; i-- {
+		seg := segments[i]
+
+		if seg == "" {
+			// allow one leading and one trailing '/' at most
+			if i == 0 || i == len(segments)-1 {
+				continue
+			}
+			return nil, fmt.Errorf("invalid empty segment at position %d", i)
+		}
+
+		seg, isUnix, err := decodeSegment(seg)
+		if err != nil {
+			return nil, err
+		}
+
+		if seg == "" {
+			return nil, fmt.Errorf("invalid empty segment at position %d", i)
+		}
+
+		if seg == "." || seg == ".." {
+			return nil, fmt.Errorf("unsupported path segment '%s' at position %d", seg, i)
+		}
+
+		ss = ssb.ExploreFields(func(efsb builder.ExploreFieldsSpecBuilder) {
+			efsb.Insert(seg, ss)
+		})
+
+		if isUnix {
+			ss = ssb.ExploreInterpretAs("unixfs", ss)
+		}
+
+		if matchPath {
+			ss = ssb.ExploreUnion(ssb.Matcher(), ss)
+		}
+	}
+
+	return ss, nil
+}
+
+func decodeSegment(seg string) (string, bool, error) {
+	isUnix := true
+
+	if seg[0] == '~' {
+		if len(seg) < 2 {
+			return "", false, xerrors.Errorf("path segment prefixed with ~ must be longer than 3 characters")
+		}
+
+		if seg[1] == '~' {
+			if len(seg) < 3 {
+				return "", false, xerrors.Errorf("path segment prefixed with ~~ must be longer than 3 characters")
+			}
+			switch seg[2] {
+			case '~':
+				seg = seg[2:]
+			case 'i':
+				if len(seg) < 4 {
+					return "", false, xerrors.Errorf("path segment prefixed with ~~i must be longer than 4 characters")
+				}
+
+				isUnix = false
+				seg = "~" + seg[3:]
+			default:
+				return "", false, xerrors.Errorf("unknown segment mode '%c'", seg[2])
+			}
+		} else {
+			isUnix = false
+			seg = seg[1:]
+		}
+	}
+
+	return seg, isUnix, nil
+}
+
+func ipldToPathSeg(is string) string {
+	if is == "" { // invalid, but don't panic
+		return ""
+	}
+	if is[0] != '~' {
+		return "~" + is
+	}
+	if len(is) < 2 { // invalid but panicking is bad
+		return "~~i"
+	}
+
+	return "~~i" + is[1:]
+}
+
+func unixToPathSeg(is string) string {
+	if is == "" { // invalid, but don't panic
+		return ""
+	}
+	if is[0] != '~' {
+		return is
+	}
+	if len(is) < 2 { // invalid but panicking is bad
+		return "~~~"
+	}
+
+	return "~~~" + is[1:]
 }

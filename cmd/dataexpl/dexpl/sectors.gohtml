@@ -26,7 +26,11 @@
     {{range .sectors}}
         {{if (gt (len .DealIDs) 0)}}
                 <div class="snum-sector">
-                    <span>{{.SectorNumber}}</span>
+                    <span>
+                        <span>{{.SectorNumber}}</span>
+                        <span class="snum-sector-activation">{{EpochTime .Activation}}</span>
+                        {{if ne nil .SectorKeyCID}}<span class="snum-sector-snap">snap</span>{{end}}
+                    </span>
                     <div>
                         {{range .DealIDs}}
                             <div class="snum-deal">

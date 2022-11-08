@@ -92,7 +92,7 @@ func (h *dxhnd) handleViewIPLD(w http.ResponseWriter, r *http.Request, node form
 				if err != nil {
 					return "", err
 				}
-				vs, err := dumpNode(v, recPath+must(k.AsString)+"/")
+				vs, err := dumpNode(v, recPath+ipldToPathSeg(must(k.AsString))+"/")
 				if err != nil {
 					return "", err
 				}
@@ -111,7 +111,7 @@ func (h *dxhnd) handleViewIPLD(w http.ResponseWriter, r *http.Request, node form
 					return "", err
 				}
 
-				vs, err := dumpNode(v, recPath+fmt.Sprint(k)+"/")
+				vs, err := dumpNode(v, recPath+ipldToPathSeg(fmt.Sprint(k))+"/")
 				if err != nil {
 					return "", err
 				}

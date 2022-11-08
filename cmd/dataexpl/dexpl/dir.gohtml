@@ -60,10 +60,10 @@
     {{$carurl := .carurl}}
     {{range $i, $e := .entries}}
         <tr>
-            <td><a href="{{$url}}Links/{{$i}}/Hash/?filename={{$e.Name}}">{{$e.Name}}</a></td>
-            <td><a href="{{$carurl}}Links/{{$i}}/Hash/?filename={{$e.Name}}">[CAR]</a><a href="{{$url}}Links/{{$i}}/Hash/?filename={{$e.Name}}&view=ipld">[IPLD]</a></td>
+            <td><a href="{{$url}}{{ufsToPathSeg $e.Name}}/?filename={{$e.Name}}">{{$e.Name}}</a></td>
+            <td><a href="{{$carurl}}{{ufsToPathSeg $e.Name}}/?filename={{$e.Name}}">[CAR]</a><a href="{{$url}}{{ufsToPathSeg $e.Name}}/?filename={{$e.Name}}&view=ipld">[IPLD]</a></td>
             <td class="size-{{$e.Size | sizeClass}}">{{$e.Size}}</td>
-            <td>{{if eq "" $e.Desc}}??? (<a href="javascript:void(0)" onclick="checkDesc(this, '{{$url}}Links/{{$i}}/Hash/?filename={{$e.Name}}')">check</a>){{else}}{{$e.Desc}}{{end}}</td>
+            <td>{{if eq "" $e.Desc}}??? (<a href="javascript:void(0)" onclick="checkDesc(this, '{{$url}}{{ufsToPathSeg $e.Name}}/?filename={{$e.Name}}')">check</a>){{else}}{{$e.Desc}}{{end}}</td>
             <td><span><i>({{$e.Cid}}<a href="/find/{{ $e.Cid }}">[find]</a>)</i></span></td>
         </tr>
     {{end}}

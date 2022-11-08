@@ -26,7 +26,6 @@ import (
 	"github.com/ipld/go-ipld-prime/node/basicnode"
 	"github.com/ipld/go-ipld-prime/traversal/selector"
 	"github.com/ipld/go-ipld-prime/traversal/selector/builder"
-	textselector "github.com/ipld/go-ipld-selector-text-lite"
 	"golang.org/x/xerrors"
 
 	bstore "github.com/filecoin-project/lotus/blockstore"
@@ -82,7 +81,7 @@ func (h *dxhnd) handleViewIPFS(w http.ResponseWriter, r *http.Request) {
 		bs := bstore.NewTieredBstore(bstore.Adapt(lbs), bstore.NewMemory())
 		ds := merkledag.NewDAGService(blockservice.New(bs, offline.Exchange(bs)))
 
-		rs, err := textselector.SelectorSpecFromPath(textselector.Expression(vars["path"]), false, ss)
+		rs, err := SelectorSpecFromPath(Expression(vars["path"]), false, ss)
 		if err != nil {
 			return cid.Cid{}, nil, nil, nil, xerrors.Errorf("failed to parse path-selector: %w", err)
 		}
@@ -273,6 +272,7 @@ func (h *dxhnd) handleViewInner(w http.ResponseWriter, r *http.Request, g selGet
 						return "b"
 					}
 				},
+				"ufsToPathSeg": unixToPathSeg,
 			}).ParseFS(dres, "dexpl/dir.gohtml")
 			if err != nil {
 				fmt.Println(err)
