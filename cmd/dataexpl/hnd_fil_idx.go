@@ -177,6 +177,18 @@ func (h *dxhnd) handleMinerSectors(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	head, err := h.api.ChainHead(ctx)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	mp, err := h.api.StateMinerPower(ctx, ma, head.Key())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	var deals []abi.DealID
 	for _, info := range ms {
 		for _, d := range info.DealIDs {
@@ -231,6 +243,9 @@ func (h *dxhnd) handleMinerSectors(w http.ResponseWriter, r *http.Request) {
 		"maddr":   ma,
 		"sectors": ms,
 		"deals":   commps,
+
+		"qap": types.SizeStr(mp.MinerPower.QualityAdjPower),
+		"raw": types.SizeStr(mp.MinerPower.RawBytePower),
 	}
 	if err := tpl.Execute(w, data); err != nil {
 		fmt.Println(err)
