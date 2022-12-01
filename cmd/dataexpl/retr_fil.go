@@ -152,12 +152,17 @@ func retrieveFil(ctx context.Context, fapi lapi.FullNode, apiStore *lapi.RemoteS
 		o.DataSelector = sel
 		o.RemoteStore = apiStore
 
+		ctx, cancel := context.WithCancel(ctx)
+
+		// todo local pubsub
 		subscribeEvents, err := fapi.ClientGetRetrievalUpdates(ctx)
 		if err != nil {
+			cancel()
 			return nil, nil, xerrors.Errorf("error setting up retrieval updates: %w", err)
 		}
 		retrievalRes, err := fapi.ClientRetrieve(ctx, o)
 		if err != nil {
+			cancel()
 			return nil, nil, xerrors.Errorf("error setting up retrieval: %w", err)
 		}
 
@@ -171,6 +176,7 @@ func retrieveFil(ctx context.Context, fapi lapi.FullNode, apiStore *lapi.RemoteS
 					retrDone()
 				}
 			}()
+			defer cancel()
 
 			for {
 				var evt lapi.RetrievalInfo
