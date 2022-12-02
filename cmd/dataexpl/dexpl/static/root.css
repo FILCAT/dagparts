@@ -47,7 +47,7 @@
 /* common */
 
 html, body {
-    font-family: monospace;
+    font-family: 'Yantramanav', monospace;
 
     background-color: #1F1F1F;
     color: #aaaaaa;
@@ -119,7 +119,7 @@ a:active {
 }
 
 a:visited {
-    color: #A474AB;
+    color: #a197c3;
     text-decoration: none;
 }
 
@@ -168,6 +168,12 @@ a:hover {
     padding: 4px;
     margin: 7px;
     background: #454545;
+
+    border-radius: 3px;
+}
+
+.snum-dealclient {
+    font-size: 0.8em;
 }
 
 .snum-sector-activation {
@@ -182,8 +188,20 @@ a:hover {
     color: #A474AB;
 }
 
+.snum-sector-plus {
+    font-weight: normal;
+    font-size: 0.8em;
+    color: #96D18E;
+}
+
 .snum-deal {
+    border-left: 1px solid #787878;
+    border-bottom: 1px solid #787878;
+    border-radius: 4px;
+    padding: 0.3em;
+
     display: inline-block;
+    position: relative;
 }
 
 .snum-dealcid {

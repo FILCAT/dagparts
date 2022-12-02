@@ -158,6 +158,8 @@ func (h *dxhnd) handleClient(w http.ResponseWriter, r *http.Request) {
 
 type DealInfo struct {
 	DealCID cid.Cid
+	Client  address.Address
+	Filplus bool
 	Size    string
 }
 
@@ -213,6 +215,8 @@ func (h *dxhnd) handleMinerSectors(w http.ResponseWriter, r *http.Request) {
 			lk.Lock()
 			commps[deal] = DealInfo{
 				DealCID: md.Proposal.PieceCID,
+				Client:  md.Proposal.Client,
+				Filplus: md.Proposal.VerifiedDeal,
 				Size:    types.SizeStr(types.NewInt(uint64(md.Proposal.PieceSize))),
 			}
 

@@ -3,6 +3,8 @@
     <meta charset="UTF-8"/>
     <title>{{ .maddr }} - Deals - Data Explorer</title>
     <link rel="stylesheet" href="/static/root.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Yantramanav">
+
 </head>
 <body>
 <div>
@@ -41,6 +43,7 @@
                         {{range .DealIDs}}
                             <div class="snum-deal">
                                 <div><a href="/deal/{{.}}">{{.}}</a> ({{ (index $deals .).Size }})</div>
+                                <div><span class="snum-dealclient">from {{ (index $deals .).Client }}</span>{{if eq true ((index $deals .).Filplus) }}<span class="snum-sector-plus"> F+</span>{{end}}</div>
                                 <div><span class="snum-dealcid">{{ (index $deals .).DealCID }}</span></div>
                             </div>
                         {{end}}
