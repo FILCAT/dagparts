@@ -37,7 +37,7 @@ var computeClientMetaCmd = &cli.Command{
 
 		deals, err := api.StateMarketDeals(ctx, types.EmptyTSK)
 		if err != nil {
-			return err
+			return xerrors.Errorf("getting market deals: %w", err)
 		}
 
 		fmt.Println("processing clients")

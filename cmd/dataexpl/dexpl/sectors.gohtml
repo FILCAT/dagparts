@@ -43,7 +43,7 @@
                         {{range .DealIDs}}
                             <div class="snum-deal">
                                 <div><a href="/deal/{{.}}">{{.}}</a> ({{ (index $deals .).Size }})</div>
-                                <div><span class="snum-dealclient">from {{ (index $deals .).Client }}</span>{{if eq true ((index $deals .).Filplus) }}<span class="snum-sector-plus"> F+</span>{{end}}</div>
+                                <div><span class="snum-dealclient">from <a href="/client/{{ (index $deals .).Client }}">{{ (index $deals .).Client }}</a></span>{{if eq true ((index $deals .).Filplus) }}<span class="snum-sector-plus"> F+</span>{{end}}</div>
                                 <div><span class="snum-dealcid">{{ (index $deals .).DealCID }}</span></div>
                             </div>
                         {{end}}
