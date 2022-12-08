@@ -3,10 +3,24 @@
     <meta charset="UTF-8"/>
     <title>{{.id}} - Deal - Data Explorer</title>
     <link rel="stylesheet" href="/static/root.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Yantramanav">
 </head>
 <body>
 <div>
     <h1>Deal {{.id}}</h1>
+
+    <div>
+        <span><a href="/">explore</a> / </span>
+        <span>(<a href="/miners">storage providers</a> / </span>
+        <span><a href="/minersectors/{{.deal.Proposal.Provider}}">{{.deal.Proposal.Provider}}</a>) | </span>
+
+        <span>(<a href="/clients">clients</a> / </span>
+        <span><a href="/client/{{.deal.Proposal.Client}}">{{.deal.Proposal.Client}}</a>) / </span>
+
+        <span><a href="/deal/{{.id}}">{{.id}}</a></span>
+    </div>
+
+    <hr>
 
     <table>
         <tr><td><b>Piece</b></td><td><i>{{.deal.Proposal.PieceCID}}</i></td></tr>

@@ -31,7 +31,9 @@
     <h3>IPFS View</h3>
     <div>
 
+        <span><a href="/">explore</a> / </span>
         {{if .filRetrieval}}
+            <span><a href="/miners">storage providers</a> / </span>
             <span><a href="/minersectors/{{.provider}}">{{.provider}}</a> / </span>
             <span><a href="/view/{{.provider}}/{{.pieceCid}}/{{.dataCid}}/">{{.pieceCid}}</a> / </span>
         {{end}}
@@ -54,7 +56,7 @@
         <a href="{{.carurl}}">[CAR]</a>
         <a href="{{.url}}?view=ipld">[IPLD]</a>
     </h5>
-    <span>node: <i>{{ .node }}</i><a href="/find/{{ .node }}">[find]</a> (<b>{{ .desc }}</b>)</span>
+    <span>node: <i>{{ .node }}</i> <a href="/find/{{ .node }}">[find]</a> (<b>{{ .desc }}</b>)</span>
     <hr>
     <table>
     {{$url := .url}}
