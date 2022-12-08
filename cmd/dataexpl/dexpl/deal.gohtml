@@ -12,15 +12,16 @@
         <tr><td><b>Piece</b></td><td><i>{{.deal.Proposal.PieceCID}}</i></td></tr>
         <tr><td><b>Label</b></td><td><i>{{.label}}</i></td></tr>
 
+        <tr><td><b>Indexer</b></td><td><i>BitSwap:</i> {{.provsBitswap}}, <i>Filecoin:</i> {{.provsFil}} (<a href="/find/{{.label}}">details</a>)</td></tr>
+
         <tr><td><b>Client</b></td><td><a href="/client/{{.deal.Proposal.Client}}">{{.deal.Proposal.Client}}</a> (<i><a href="https://filfox.info/en/address/{{.deal.Proposal.Client}}">filfox</a></i>)</td></tr>
         <tr><td><b>Provider</b></td><td><a href="/minersectors/{{.deal.Proposal.Provider}}">{{.deal.Proposal.Provider}}</a> (<i><a href="https://filfox.info/en/address/{{.deal.Proposal.Provider}}">filfox</a></i>)</td></tr>
 
         <tr><td><b>Start Epoch</b></td><td>{{EpochTime .deal.Proposal.StartEpoch}}</td></tr>
         <tr><td><b>End Epoch</b></td><td>{{EpochTime .deal.Proposal.EndEpoch}}</td></tr>
-        <tr><td><b>Piece Size</b></td><td>{{SizeStr .deal.Proposal.PieceSize}}</td></tr>
 
         <tr><td><b>Fil+</b></td><td><i>{{.deal.Proposal.VerifiedDeal}}</i></td></tr>
-
+        <tr><td><b>Piece Size</b></td><td>{{SizeStr .deal.Proposal.PieceSize}}</td></tr>
         <tr><td><b>Content</b></td><td>{{.contentDesc}}</td></tr>
     </table>
 

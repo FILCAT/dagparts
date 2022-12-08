@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/filecoin-project/go-address"
+	"github.com/filecoin-project/index-provider/metadata"
 	cliutil "github.com/filecoin-project/lotus/cli/util"
 	"github.com/ipfs/go-cid"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"html/template"
 	"net/http"
 	"os"
@@ -327,6 +329,34 @@ func (h *dxhnd) handleDeal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	resp, err := h.idx.Find(ctx, dcid.Hash())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	bitswapProvs := map[peer.ID]int{}
+	filProvs := map[peer.ID]int{}
+
+	for _, result := range resp.MultihashResults {
+		for _, providerResult := range result.ProviderResults {
+			var meta metadata.Metadata
+			if err := meta.UnmarshalBinary(providerResult.Metadata); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			for _, proto := range meta.Protocols() {
+				switch meta.Get(proto).(type) {
+				case *metadata.GraphsyncFilecoinV1:
+					filProvs[providerResult.Provider.ID]++
+				case *metadata.Bitswap:
+					bitswapProvs[providerResult.Provider.ID]++
+				}
+			}
+		}
+	}
+
 	tpl, err := template.New("deal.gohtml").Funcs(map[string]interface{}{
 		"EpochTime": func(e abi.ChainEpoch) string {
 			return cliutil.EpochTime(now.Height(), e)
@@ -346,6 +376,9 @@ func (h *dxhnd) handleDeal(w http.ResponseWriter, r *http.Request) {
 		"deal":  d,
 		"label": lstr,
 		"id":    did,
+
+		"provsBitswap": len(bitswapProvs),
+		"provsFil":     len(filProvs),
 
 		"contentDesc": cdesc,
 	}
