@@ -49,6 +49,12 @@ func (h *dxhnd) handleFind(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var providers []providerProto
+	seen := map[peer.ID]int{}
+
+	const (
+		bswap = 0x1
+		gs    = 0x2
+	)
 
 	for _, result := range resp.MultihashResults {
 		for _, providerResult := range result.ProviderResults {
@@ -70,12 +76,22 @@ func (h *dxhnd) handleFind(w http.ResponseWriter, r *http.Request) {
 
 				switch p := meta.Get(proto).(type) {
 				case *metadata.GraphsyncFilecoinV1:
+					if seen[providerResult.Provider.ID]&gs > 0 {
+						continue
+					}
+					seen[providerResult.Provider.ID] |= gs
+
 					res.Protocol = "Graphsync"
 
 					res.Piece = p.PieceCID
 					res.VerifiedDeal = p.VerifiedDeal
 					res.FastRetrieval = p.FastRetrieval
 				case *metadata.Bitswap:
+					if seen[providerResult.Provider.ID]&bswap > 0 {
+						continue
+					}
+					seen[providerResult.Provider.ID] |= bswap
+
 					res.Protocol = "Bitswap"
 				}
 
