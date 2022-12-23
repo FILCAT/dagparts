@@ -37,21 +37,26 @@
     <h3>IPLD View</h3>
     <div>
 
+    {{$datasource :=  (print "ipfs") }}
+    {{if .filRetrieval}}
+        {{$datasource = (print .provider "/" .pieceCid)}}
+    {{end}}
+
     <span><a href="/">explore</a> / </span>
     {{if .filRetrieval}}
         <span><a href="/miners">storage providers</a> / </span>
         <span><a href="/minersectors/{{.provider}}">{{.provider}}</a> / </span>
-        <span><a href="/view/{{.provider}}/{{.pieceCid}}/{{.dataCid}}/">{{.pieceCid}}</a> / </span>
+        <span><a href="/view/{{$datasource}}/{{.dataCid}}/">{{.pieceCid}}</a> / </span>
     {{end}}
 
-    <span><a href="/view/{{.provider}}/{{.pieceCid}}/{{.dataCid}}/">{{.dataCid}}</a> / </span>
+    <span><a href="/view/{{$datasource}}/{{.dataCid}}/?view=ipld">{{.dataCid}}</a> / </span>
 
 
-    {{$purl := (print "/view/" .provider "/" .pieceCid "/" .dataCid "/") }}
+    {{$purl := (print "/view/" $datasource "/" .dataCid "/")}}
     {{range .path}}
         {{$purl = (print $purl .Name "/")}}
         {{if .Link}}
-            <span><a href="{{$purl}}">{{.Name}}</a> / </span>
+            <span><a href="{{$purl}}?view=ipld">{{.Name}}</a> / </span>
         {{else}}
             <span>{{.Name}} / </span>
         {{end}}
