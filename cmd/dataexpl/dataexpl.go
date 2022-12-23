@@ -146,6 +146,10 @@ var dataexplCmd = &cli.Command{
 			Required: true,
 			Aliases:  []string{"m"},
 		},
+		&cli.BoolFlag{
+			Name:  "local",
+			Usage: "set to true if running as a private instance",
+		},
 	},
 	Action: func(cctx *cli.Context) error {
 		api, closer, err := cliutil.GetFullNodeAPIV1(cctx)
@@ -254,7 +258,9 @@ var dataexplCmd = &cli.Command{
 		m.HandleFunc("/ping/miner/{id}", dh.handlePingMiner).Methods("GET")
 		m.HandleFunc("/ping/peer/ipfs/{id}", dh.handlePingIPFS).Methods("GET")
 		m.HandleFunc("/ping/peer/lotus/{id}", dh.handlePingLotus).Methods("GET")
-		m.HandleFunc("/deals", dh.handleDeals).Methods("GET")
+		if cctx.Bool("local") {
+			m.HandleFunc("/deals", dh.handleDeals).Methods("GET")
+		}
 		m.HandleFunc("/clients", dh.handleClients).Methods("GET")
 		m.HandleFunc("/client/{id}", dh.handleClient).Methods("GET")
 		m.HandleFunc("/minersectors/{id}", dh.handleMinerSectors).Methods("GET")

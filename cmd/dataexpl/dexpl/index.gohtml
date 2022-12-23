@@ -4,17 +4,79 @@
     <title>Data Explorer</title>
     <link rel="stylesheet" href="/static/root.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Yantramanav">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Press+Start+2P">
 </head>
 <body>
-<h2>DATA EXPLORER</h2>
-<div>
-    <a href="/miners">[STORAGE PROVIDERS]</a>
+
+<div style="height: 2em; display: flex">
+    <div style="color: #cccccc; transform:scaleY(0.50); transform-origin: 0 0; font-size: 4em; font-weight: bold; height: 2em; font-family: 'Press Start 2P', serif;">
+        DAG
+    </div>
+    <div style="transform:scaleY(0.50); transform-origin: 0 0; font-size: 4em; font-weight: bold; height: 2em; font-family: 'Press Start 2P', serif;">
+        PARTS
+    </div>
 </div>
-<div>
-    <a href="/clients">[CLIENTS]</a>
+
+
+<hr>
+
+<div class="index-line">
+    <div>
+        <div>
+            <h3>Explore</h3>
+        </div>
+        <div>
+            <h2><span style="font-family: 'Press Start 2P', serif; color: #cccccc">Filecoin</span></h2>
+        </div>
+    </div>
 </div>
-<div>
-    <a href="/deals">[OWN DEALS]</a>
+
+<div class="index-line" style="transform:scale(2,4); margin-top: 4em; margin-bottom: 8em; font-family: 'Press Start 2P', serif">
+    <span>
+        <a href="/miners">[PROVIDERS]</a>
+    </span>
+        <span>
+        <a href="/clients">[CLIENTS]</a>
+    </span>
+    {{if .local}}
+    <span>
+        <a href="/deals">[OWN DEALS]</a>
+    </span>
+    {{end}}
 </div>
+
+<hr>
+
+<div class="index-line">
+    <div>
+        <div>
+            <h3>Find</h3>
+        </div>
+        <div>
+            <h2><span style="font-family: 'Press Start 2P', serif; color: #cccccc">DAGS</span></h2>
+        </div>
+    </div>
+</div>
+
+
+<div class="index-line">
+    <div>
+        <input type="text" placeholder="CID CID CID CID CID CID CID CID CID CID CID CID CID CID CID CID CID CID CID CID CID CID CID CID CID CID CID ">
+    </div>
+</div>
+
+<div class="index-line" style="transform:scale(2,4); margin-top: 4em; margin-bottom: 8em; font-family: 'Press Start 2P', serif">
+    <span>
+        <a href="/find">[FIND]</a>
+    </span>
+    <span>
+        <a href="/ipld">[IPLD]</a>
+    </span>
+    <span>
+        <a href="/ipfs">[IPFS]</a>
+    </span>
+</div>
+
+
 </body>
 </html>

@@ -212,3 +212,29 @@ a:hover {
     width: 50ex;
     display: block;
 }
+
+/* index */
+
+.index-line {
+    display: flex;
+    justify-content: center;
+    gap: 2em;
+}
+
+input[type=text] {
+    max-width: 75vw;
+    width: 53em;
+    padding: 12px 20px;
+    margin: 8px 0;
+    box-sizing: border-box;
+
+    background-color: #454545;
+    outline: none;
+    border-style: hidden;
+
+    color: #aaaaaa;
+    font-weight: bold;
+    text-align: center;
+}
+
+
