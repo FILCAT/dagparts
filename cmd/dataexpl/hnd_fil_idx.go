@@ -214,6 +214,10 @@ func (h *dxhnd) handleMinerSectors(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
+			if md.Proposal.Provider == address.Undef {
+				return
+			}
+
 			lk.Lock()
 			commps[deal] = DealInfo{
 				DealCID: md.Proposal.PieceCID,
@@ -226,6 +230,17 @@ func (h *dxhnd) handleMinerSectors(w http.ResponseWriter, r *http.Request) {
 		}(deal)
 	}
 	wg.Wait()
+
+	// filter out inactive deals
+	for _, m := range ms {
+		filtered := make([]abi.DealID, 0, len(m.DealIDs))
+		for _, d := range m.DealIDs {
+			if _, found := commps[d]; found {
+				filtered = append(filtered, d)
+			}
+		}
+		m.DealIDs = filtered
+	}
 
 	now, err := h.api.ChainHead(r.Context())
 	if err != nil {
