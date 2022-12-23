@@ -1,25 +1,32 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8"/>
-    <title>Miners - Data Explorer</title>
+    <title>Providers - Data Explorer</title>
     <link rel="stylesheet" href="/static/root.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Yantramanav">
 </head>
 <body>
-<div>
+<table>
     {{range .miners}}
-        <div>
-            <a href="/minersectors/{{.Addr}}">Miner {{.Addr}}</a> (Locked: {{.Locked}}) <span id="ping{{.Addr}}" onload="pingMiner()">..</span>
-        </div>
+        <tr>
+            <td>
+                <a href="/minersectors/{{.Addr}}">{{.Addr}}</a>
+            </td>
+            <td>
+                Locked: {{.Locked.Short}}
+            </td>
+            <td>
+                <span id="ping{{.Addr}}" onload="pingMiner()">..</span>
+            </td>
+        </tr>
     {{end}}
-</div>
+</table>
 <script>
 async function pingMiner(ma) {
     document.getElementById("ping"+ma).innerText = "connecting.."
 
     let r = await fetch("/ping/miner/"+ma)
-
-    document.getElementById("ping"+ma).innerText = await r.text()
+    document.getElementById("ping"+ma).innerText = (await r.text()).split('\n')[0]
 }
 
 addEventListener('load', (_) => {
