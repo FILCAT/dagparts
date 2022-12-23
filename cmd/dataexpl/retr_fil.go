@@ -369,6 +369,10 @@ func SelectorSpecFromPath(path Expression, matchPath bool, optionalSubselectorAt
 func decodeSegment(seg string) (string, bool, error) {
 	isUnix := true
 
+	if len(seg) == 0 {
+		return "", false, nil
+	}
+
 	if seg[0] == '~' {
 		if len(seg) < 2 {
 			return "", false, xerrors.Errorf("path segment prefixed with ~ must be longer than 3 characters")

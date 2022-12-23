@@ -154,7 +154,12 @@ func (h *dxhnd) handleViewInner(w http.ResponseWriter, r *http.Request, g selGet
 		done()
 	}()
 
-	tpldata["path"] = markLinkPaths(tplPathSegments(vars["path"]), links)
+	eps, rps, err := tplPathSegments(vars["path"])
+	if err != nil {
+		http.Error(w, xerrors.Errorf("get path segments: %w", err).Error(), http.StatusInternalServerError)
+		return
+	}
+	tpldata["path"] = markLinkPaths(eps, rps, links)
 
 	swapCodec := func(c cid.Cid, cd uint64) cid.Cid {
 		if c.Prefix().Version == 0 && cd == cid.DagProtobuf {
@@ -439,8 +444,20 @@ func getHeadReader(ctx context.Context, get selGetter, pss func(spec builder.Sel
 	return io2.NewDagReader(ctx, node, dserv)
 }
 
-func tplPathSegments(p string) []string {
-	return strings.Split(strings.TrimRight(p, "/"), "/")
+// returns encoded and raw
+func tplPathSegments(p string) ([]string, []string, error) {
+	enc := strings.Split(strings.TrimRight(p, "/"), "/")
+	raw := make([]string, len(enc))
+	// this in kind of a hack
+	for i := range enc {
+		var err error
+		raw[i], _, err = decodeSegment(enc[i])
+		if err != nil {
+			return nil, nil, xerrors.Errorf("decoding path segmeth: %w", err)
+		}
+	}
+
+	return enc, raw, nil
 }
 
 type PathElem struct {
@@ -448,12 +465,13 @@ type PathElem struct {
 	Link bool
 }
 
-func markLinkPaths(pseg []string, links map[string]struct{}) []PathElem {
-	fmt.Printf("pss %#v\n", pseg)
+func markLinkPaths(epseg, rpseg []string, links map[string]struct{}) []PathElem {
+	fmt.Printf("pss %#v\n", epseg)
+	fmt.Printf("links %#v/n", links)
 
-	out := make([]PathElem, len(pseg))
-	for i, s := range pseg {
-		_, lnk := links[strings.Join(pseg[:i+1], "/")]
+	out := make([]PathElem, len(epseg))
+	for i, s := range epseg {
+		_, lnk := links[strings.Join(rpseg[:i+1], "/")]
 
 		out[i] = PathElem{
 			Name: s,
