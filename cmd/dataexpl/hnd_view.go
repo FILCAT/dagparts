@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/filecoin-project/cidtravel/ctbstore"
 	"github.com/filecoin-project/go-address"
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
@@ -78,7 +79,14 @@ func (h *dxhnd) handleViewIPFS(w http.ResponseWriter, r *http.Request) {
 			return cid.Cid{}, nil, nil, nil, err
 		}
 
-		bs := bstore.NewTieredBstore(bstore.Adapt(lbs), bstore.NewMemory())
+		abs := bstore.NewAPIBlockstore(h.api)
+
+		pgbs := &ctbstore.PargetBs{Backing: []bstore.Blockstore{
+			lbs,
+			abs,
+		}}
+
+		bs := bstore.NewTieredBstore(bstore.Adapt(pgbs), bstore.NewMemory())
 		ds := merkledag.NewDAGService(blockservice.New(bs, offline.Exchange(bs)))
 
 		rs, err := SelectorSpecFromPath(Expression(vars["path"]), false, ss)

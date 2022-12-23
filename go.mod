@@ -3,33 +3,36 @@ module github.com/filecoin-project/cidtravel
 go 1.19
 
 require (
-	github.com/filecoin-project/go-address v1.0.0
-	github.com/filecoin-project/go-fil-markets v1.24.0
-	github.com/filecoin-project/go-state-types v0.1.12-beta
+	github.com/filecoin-project/go-address v1.1.0
+	github.com/filecoin-project/go-fil-markets v1.25.0
+	github.com/filecoin-project/go-state-types v0.10.0-alpha-2
 	github.com/filecoin-project/index-provider v0.8.1
-	github.com/filecoin-project/lotus v1.17.3-0.20221101112547-6c52bfe685d1
+	github.com/filecoin-project/lotus v1.19.0
 	github.com/filecoin-project/storetheindex v0.4.17
 	github.com/gabriel-vasile/mimetype v1.4.1
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.7.4
 	github.com/gorilla/websocket v1.5.0
+	github.com/hashicorp/go-multierror v1.1.1
 	github.com/ipfs/go-block-format v0.0.3
 	github.com/ipfs/go-blockservice v0.4.0
 	github.com/ipfs/go-cid v0.2.0
+	github.com/ipfs/go-datastore v0.5.1
 	github.com/ipfs/go-ds-flatfs v0.5.1
+	github.com/ipfs/go-ipfs-blockstore v1.2.0
 	github.com/ipfs/go-ipfs-exchange-offline v0.3.0
 	github.com/ipfs/go-ipfs-http-client v0.4.0
 	github.com/ipfs/go-ipld-format v0.4.0
 	github.com/ipfs/go-log/v2 v2.5.1
-	github.com/ipfs/go-merkledag v0.8.0
+	github.com/ipfs/go-merkledag v0.8.1
 	github.com/ipfs/go-unixfs v0.3.1
 	github.com/ipfs/go-unixfsnode v1.4.0
 	github.com/ipld/go-codec-dagpb v1.3.2
 	github.com/ipld/go-ipld-prime v0.17.0
-	github.com/ipld/go-ipld-selector-text-lite v0.0.1
 	github.com/libp2p/go-libp2p v0.22.0
 	github.com/multiformats/go-multiaddr v0.6.0
 	github.com/multiformats/go-multihash v0.2.1
+	github.com/stretchr/testify v1.8.0
 	github.com/urfave/cli/v2 v2.8.1
 	github.com/whyrusleeping/cbor-gen v0.0.0-20220514204315-f29c37e9c44c
 	golang.org/x/xerrors v0.0.0-20220609144429-65e65417b02f
@@ -89,17 +92,16 @@ require (
 	github.com/hako/durafmt v0.0.0-20200710122514-c0fb7b4da026 // indirect
 	github.com/hannahhoward/cbor-gen-for v0.0.0-20200817222906-ea96cece81f1 // indirect
 	github.com/hannahhoward/go-pubsub v0.0.0-20200423002714-8d62886cc36e // indirect
+	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/icza/backscanner v0.0.0-20210726202459-ac2ffc679f94 // indirect
 	github.com/ipfs/bbloom v0.0.4 // indirect
 	github.com/ipfs/go-bitfield v1.0.0 // indirect
-	github.com/ipfs/go-datastore v0.5.1 // indirect
 	github.com/ipfs/go-ds-badger2 v0.1.2 // indirect
 	github.com/ipfs/go-ds-leveldb v0.5.0 // indirect
 	github.com/ipfs/go-ds-measure v0.2.0 // indirect
 	github.com/ipfs/go-fs-lock v0.0.7 // indirect
 	github.com/ipfs/go-graphsync v0.13.1 // indirect
-	github.com/ipfs/go-ipfs-blockstore v1.2.0 // indirect
 	github.com/ipfs/go-ipfs-cmds v0.7.0 // indirect
 	github.com/ipfs/go-ipfs-ds-help v1.1.0 // indirect
 	github.com/ipfs/go-ipfs-exchange-interface v0.2.0 // indirect
@@ -113,6 +115,7 @@ require (
 	github.com/ipfs/go-verifcid v0.0.1 // indirect
 	github.com/ipfs/interface-go-ipfs-core v0.7.0 // indirect
 	github.com/ipld/go-car v0.4.0 // indirect
+	github.com/ipld/go-ipld-selector-text-lite v0.0.1 // indirect
 	github.com/jbenet/goprocess v0.1.4 // indirect
 	github.com/jessevdk/go-flags v1.4.0 // indirect
 	github.com/jpillora/backoff v1.0.0 // indirect
@@ -149,7 +152,6 @@ require (
 	github.com/shirou/gopsutil v2.18.12+incompatible // indirect
 	github.com/spacemonkeygo/spacelog v0.0.0-20180420211403-2296661a0572 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
-	github.com/stretchr/testify v1.8.0 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.0.1 // indirect
