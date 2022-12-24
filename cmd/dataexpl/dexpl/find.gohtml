@@ -4,6 +4,7 @@
     <title>Find - Data Explorer</title>
     <link rel="stylesheet" href="/static/root.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Yantramanav">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Press+Start+2P">
     <script>
         async function pingPeer(ma, mode, addrinfo) {
             document.getElementById("ping"+mode+ma).innerText = "connecting.."
@@ -38,11 +39,28 @@
     </script>
 </head>
 <body>
-<h3>Find content</h3>
-<span>node: <i><a href="/view/ipfs/{{.root}}/">{{.root}}</a></i></span>
-<span><a href="/car/ipfs/{{.root}}/">[CAR]</a></span>
-<span><a href="/view/ipfs/{{.root}}/?view=ipld">[IPLD]</a></span>
+<!--header-->
+<div style="height: 2em; display: flex">
+    <div style="color: #cccccc; transform:scaleY(0.50); transform-origin: 0 0; font-size: 4em; font-weight: bold; height: 2em; font-family: 'Press Start 2P', serif;">
+        DAG
+    </div>
+    <div style="transform:scaleY(0.50); transform-origin: 0 0; font-size: 4em; font-weight: bold; height: 2em; font-family: 'Press Start 2P', serif;">
+        PARTS
+    </div>
+</div>
 <hr>
+
+<h3>Find content</h3>
+<div>
+    <span><a href="/">explore</a> / find</span>
+</div>
+<div>
+    <span>node: <i><a href="/view/ipfs/{{.root}}/">{{.root}}</a></i></span>
+    <span><a href="/car/ipfs/{{.root}}/">[CAR]</a></span>
+    <span><a href="/view/ipfs/{{.root}}/?view=ipld">[IPLD]</a></span>
+</div>
+<hr>
+<!--/header-->
 
 <div class="find-content">
     {{ $root := .root }}

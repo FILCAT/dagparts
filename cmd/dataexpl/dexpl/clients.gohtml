@@ -4,8 +4,26 @@
     <title>Client list - Data Explorer</title>
     <link rel="stylesheet" href="/static/root.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Yantramanav">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Press+Start+2P">
 </head>
 <body>
+<!--header-->
+<div style="height: 2em; display: flex">
+    <div style="color: #cccccc; transform:scaleY(0.50); transform-origin: 0 0; font-size: 4em; font-weight: bold; height: 2em; font-family: 'Press Start 2P', serif;">
+        DAG
+    </div>
+    <div style="transform:scaleY(0.50); transform-origin: 0 0; font-size: 4em; font-weight: bold; height: 2em; font-family: 'Press Start 2P', serif;">
+        PARTS
+    </div>
+</div>
+<hr>
+<h3>Clients</h3>
+<div>
+    <span><a href="/">explore</a> / clients</span>
+</div>
+<hr>
+<!--/header-->
+
 <div>
     {{range .clients}}
         <div>

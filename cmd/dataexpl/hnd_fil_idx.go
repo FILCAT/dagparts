@@ -153,6 +153,7 @@ func (h *dxhnd) handleClient(w http.ResponseWriter, r *http.Request) {
 
 	data := map[string]interface{}{
 		"deals": clDeals,
+		"addr":  ma,
 	}
 	if err := tpl.Execute(w, data); err != nil {
 		fmt.Println(err)
