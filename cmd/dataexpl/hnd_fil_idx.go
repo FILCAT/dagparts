@@ -1,13 +1,16 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/filecoin-project/go-address"
+	"github.com/filecoin-project/go-state-types/builtin"
 	"github.com/filecoin-project/index-provider/metadata"
 	cliutil "github.com/filecoin-project/lotus/cli/util"
 	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/multiformats/go-multihash"
 	"html/template"
 	"net/http"
 	"os"
@@ -72,7 +75,6 @@ func (h *dxhnd) handleDeals(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *dxhnd) handleClients(w http.ResponseWriter, r *http.Request) {
-
 	type clEntry struct {
 		Addr  address.Address
 		Count int64
@@ -396,6 +398,62 @@ func (h *dxhnd) handleDeal(w http.ResponseWriter, r *http.Request) {
 		"provsFil":     len(filProvs),
 
 		"contentDesc": cdesc,
+	}
+	if err := tpl.Execute(w, data); err != nil {
+		fmt.Println(err)
+		return
+	}
+}
+
+func (h *dxhnd) handleChain(w http.ResponseWriter, r *http.Request) {
+	head, err := h.api.ChainHead(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	actors := map[string]cid.Cid{}
+	getActor := func(addr address.Address) {
+		act, err := h.api.StateGetActor(r.Context(), addr, head.Key())
+		if err != nil {
+			return
+		}
+
+		var data bytes.Buffer
+		if err := act.MarshalCBOR(&data); err != nil {
+			return
+		}
+
+		c, err := (&cid.V1Builder{Codec: cid.DagCBOR, MhType: multihash.IDENTITY}).Sum(data.Bytes())
+		if err != nil {
+			return
+		}
+
+		actors[addr.String()] = c
+	}
+
+	getActor(builtin.SystemActorAddr)
+	getActor(builtin.InitActorAddr)
+	getActor(builtin.RewardActorAddr)
+	getActor(builtin.CronActorAddr)
+	getActor(builtin.StoragePowerActorAddr)
+	getActor(builtin.StorageMarketActorAddr)
+	getActor(builtin.VerifiedRegistryActorAddr)
+	getActor(builtin.DatacapActorAddr)
+	getActor(builtin.BurntFundsActorAddr)
+
+	tpl, err := template.New("chain.gohtml").ParseFS(dres, "dexpl/chain.gohtml")
+	if err != nil {
+		fmt.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	data := map[string]interface{}{
+		"head":   head,
+		"actors": actors,
 	}
 	if err := tpl.Execute(w, data); err != nil {
 		fmt.Println(err)

@@ -254,6 +254,7 @@ var dataexplCmd = &cli.Command{
 		m.PathPrefix("/static/").Handler(http.FileServer(http.FS(static))).Methods("GET", "HEAD")
 
 		m.HandleFunc("/", dh.handleIndex).Methods("GET")
+		m.HandleFunc("/chain/filecoin/mainnet", dh.handleChain).Methods("GET")
 		m.HandleFunc("/miners", dh.handleMiners).Methods("GET")
 		m.HandleFunc("/ping/miner/{id}", dh.handlePingMiner).Methods("GET")
 		m.HandleFunc("/ping/peer/ipfs/{id}", dh.handlePingIPFS).Methods("GET")
