@@ -1,0 +1,60 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Client Deals - Data Explorer</title>
+    <link rel="stylesheet" href="/static/root.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Yantramanav">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Press+Start+2P">
+</head>
+<body>
+    <!--header-->
+    <div style="height: 2em; display: flex">
+        <div style="color: #cccccc; transform:scaleY(0.50); transform-origin: 0 0; font-size: 4em; font-weight: bold; height: 2em; font-family: 'Press Start 2P', serif;">
+            DAG
+        </div>
+        <div style="transform:scaleY(0.50); transform-origin: 0 0; font-size: 4em; font-weight: bold; height: 2em; font-family: 'Press Start 2P', serif;">
+            PARTS
+        </div>
+    </div>
+    <hr>
+    <h3>Filecoin chain</h3>
+    <div>
+        <span><a href="/">explore</a> / chain / filecoin / <a href="/chain/filecoin/mainnet">mainnet</a></span>
+    </div>
+    <hr>
+    <!--/header-->
+
+    <div>HEAD</div>
+    {{range .head.Cids}}
+        <div>
+            <span><a href="/view/ipfs/{{.}}/?view=ipld">{{.}}</a></span>
+        </div>
+    {{end}}
+
+    <div>STATE ROOT</div>
+    <div>
+        <span><a href="/view/ipfs/{{.head.ParentState}}/?view=ipld">{{.head.ParentState}}</a></span>
+    </div>
+    <div>
+        <span><a href="/view/ipfs/{{index .actors "f00"}}/?view=ipld">[f00:system]</a></span>
+        <span><a href="/view/ipfs/{{index .actors "f01"}}/?view=ipld">[f01:init]</a></span>
+        <span><a href="/view/ipfs/{{index .actors "f02"}}/?view=ipld">[f02:reward]</a></span>
+        <span><a href="/view/ipfs/{{index .actors "f03"}}/?view=ipld">[f03:cron]</a></span>
+        <span><a href="/view/ipfs/{{index .actors "f04"}}/?view=ipld">[f04:power]</a></span>
+        <span><a href="/view/ipfs/{{index .actors "f05"}}/?view=ipld">[f05:market]</a></span>
+        <span><a href="/view/ipfs/{{index .actors "f06"}}/?view=ipld">[f06:vreg]</a></span>
+        <span><a href="/view/ipfs/{{index .actors "f07"}}/?view=ipld">[f07:datacap]</a></span>
+        <span><a href="/view/ipfs/{{index .actors "f099"}}/?view=ipld">[f099:burnt]</a></span>
+    </div>
+    <hr>
+    <div>
+        JUMP TO
+    </div>
+    <div>
+        <input type="text" placeholder="EPOCH / ADDRESS">
+    </div>
+    <div>
+        <a href="#">[GO (todo)]</a>
+    </div>
+</body>
+</html>
