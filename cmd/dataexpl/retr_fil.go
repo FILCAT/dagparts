@@ -74,7 +74,7 @@ func getFilRetrieval(bsb *ctbstore.TempBsb, abs *apiBstoreServer, api lapi.FullN
 
 		tbs, err := bsb.MakeStore()
 		if err != nil {
-			return cid.Cid{}, nil, nil, nil, xerrors.Errorf("make temp sore: %w", err)
+			return cid.Cid{}, nil, nil, nil, xerrors.Errorf("make temp store: %w", err)
 		}
 
 		var cbs bstore.Blockstore = tbs
@@ -83,6 +83,9 @@ func getFilRetrieval(bsb *ctbstore.TempBsb, abs *apiBstoreServer, api lapi.FullN
 
 		storeid, err := abs.MakeRemoteBstore(context.TODO(), ctbstore.NewCtxWrap(cbs, ctbstore.WithNoBlock))
 		if err != nil {
+			if err := tbs.Release(); err != nil {
+				log.Errorw("release temp store", "error")
+			}
 			return cid.Cid{}, nil, nil, nil, err
 		}
 
@@ -95,6 +98,9 @@ func getFilRetrieval(bsb *ctbstore.TempBsb, abs *apiBstoreServer, api lapi.FullN
 			log.Warnw("store released")
 		})
 		if err != nil {
+			if err := tbs.Release(); err != nil {
+				log.Errorw("release temp store", "error")
+			}
 			return cid.Undef, nil, nil, nil, xerrors.Errorf("retrieve: %w", err)
 		}
 
