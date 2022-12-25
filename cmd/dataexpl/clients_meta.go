@@ -5,14 +5,19 @@ import (
 	"fmt"
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
+	market9 "github.com/filecoin-project/go-state-types/builtin/v9/market"
+	lapi "github.com/filecoin-project/lotus/api"
+	"github.com/filecoin-project/lotus/blockstore"
+	"github.com/filecoin-project/lotus/chain/actors/adt"
+	"github.com/filecoin-project/lotus/chain/actors/builtin/market"
 	"github.com/filecoin-project/lotus/chain/types"
 	cliutil "github.com/filecoin-project/lotus/cli/util"
+	cbor "github.com/ipfs/go-ipld-cbor"
 	"github.com/urfave/cli/v2"
 	"golang.org/x/xerrors"
 	"os"
 	"path/filepath"
 	"sort"
-	"strconv"
 )
 
 var computeClientMetaCmd = &cli.Command{
@@ -35,12 +40,39 @@ var computeClientMetaCmd = &cli.Command{
 
 		fmt.Println("get list")
 
-		deals, err := api.StateMarketDeals(ctx, types.EmptyTSK)
+		mact, err := api.StateGetActor(ctx, market.Address, types.EmptyTSK)
 		if err != nil {
-			return xerrors.Errorf("getting market deals: %w", err)
+			return err
 		}
 
-		fmt.Println("processing clients")
+		stor := adt.WrapStore(ctx, cbor.NewCborStore(blockstore.NewAPIBlockstore(api)))
+
+		mas, err := market.Load(stor, mact)
+		if err != nil {
+			return err
+		}
+
+		ps, err := mas.Proposals()
+		if err != nil {
+			return err
+		}
+
+		var at int64
+
+		deals := map[abi.DealID]*lapi.MarketDeal{}
+		err = ps.ForEach(func(id abi.DealID, dp market9.DealProposal) error {
+			at++
+			if at%4000 == 0 {
+				fmt.Printf("\r%d", at)
+			}
+			deals[id] = &lapi.MarketDeal{Proposal: dp}
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+
+		fmt.Println("\rprocessing clients")
 
 		{
 			type dealMeta struct {
@@ -97,9 +129,7 @@ var computeClientMetaCmd = &cli.Command{
 
 		clDeals := map[address.Address][]provMeta{}
 
-		for did, deal := range deals {
-			d, _ := strconv.ParseInt(did, 10, 64)
-
+		for d, deal := range deals {
 			clDeals[deal.Proposal.Client] = append(clDeals[deal.Proposal.Client], provMeta{
 				Prov: deal.Proposal.Provider,
 				Data: types.SizeStr(types.NewInt(uint64(deal.Proposal.PieceSize))),
