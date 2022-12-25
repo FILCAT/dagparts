@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8"/>
@@ -5,8 +6,28 @@
     <link rel="stylesheet" href="/static/root.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Yantramanav">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Press+Start+2P">
+    <script>
+        function cidInput(e) {
+            ['find', 'ipld', 'ipfs'].forEach(t => {
+                // todo this is a bit terrible
+                let h = "/view/" + t + "/" + e.value + "/"
+                if(t === 'ipld') {
+                    h = "/view/ipfs/" + e.value + "/?view=ipld"
+                }
+                if(t === 'find') {
+                    h = "/" + t + "/" + e.value
+                }
+                document.getElementById('cid-'+t).href = h
+            });
+            if(e.value.length > 4) {
+                document.getElementById("cid-btn").style.display = "flex"
+            } else {
+                document.getElementById("cid-btn").style.display = "none"
+            }
+        }
+    </script>
 </head>
-<body>
+<body onload="cidInput(document.getElementById('cid-in'))">
 
 <div style="height: 2em; display: flex">
     <div style="color: #cccccc; transform:scaleY(0.50); transform-origin: 0 0; font-size: 4em; font-weight: bold; height: 2em; font-family: 'Press Start 2P', serif;">
@@ -16,7 +37,6 @@
         PARTS
     </div>
 </div>
-
 
 <hr>
 
@@ -66,19 +86,19 @@
 
 <div class="index-line">
     <div>
-        <input type="text" placeholder="CID CID CID CID CID CID CID CID CID CID CID CID CID CID CID CID CID CID CID CID CID CID CID CID CID CID CID ">
+        <input type="text" id="cid-in" oninput="cidInput(this)" placeholder="CID CID CID CID CID CID CID CID CID CID CID CID CID CID CID CID CID CID CID CID CID CID CID CID CID CID CID ">
     </div>
 </div>
 
-<div class="index-line" style="transform:scale(2,4); transform-origin: top left; width: 50vw; margin-top: 4em; margin-bottom: 8em; font-family: 'Press Start 2P', serif">
+<div id="cid-btn" class="index-line" style="display: none; transform:scale(2,4); transform-origin: top left; width: 50vw; margin-top: 4em; margin-bottom: 8em; font-family: 'Press Start 2P', serif">
     <span>
-        <a href="/find">[FIND]</a>
+        <a id="cid-find" href="/find">[FIND]</a>
     </span>
     <span>
-        <a href="/ipld">[IPLD]</a>
+        <a id="cid-ipld" href="/ipld">[IPLD]</a>
     </span>
     <span>
-        <a href="/ipfs">[IPFS]</a>
+        <a id="cid-ipfs" href="/ipfs">[IPFS]</a>
     </span>
 </div>
 
