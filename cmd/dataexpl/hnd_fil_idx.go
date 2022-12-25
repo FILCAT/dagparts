@@ -407,15 +407,29 @@ func (h *dxhnd) handleDeal(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *dxhnd) handleChain(w http.ResponseWriter, r *http.Request) {
-	head, err := h.api.ChainHead(r.Context())
+	ts, err := h.api.ChainHead(r.Context())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	if r.FormValue("epoch") != "" {
+		ep, err := strconv.ParseInt(r.FormValue("epoch"), 0, 64)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		ts, err = h.api.ChainGetTipSetByHeight(r.Context(), abi.ChainEpoch(ep), ts.Key())
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
 	actors := map[string]cid.Cid{}
 	getActor := func(addr address.Address) {
-		act, err := h.api.StateGetActor(r.Context(), addr, head.Key())
+		act, err := h.api.StateGetActor(r.Context(), addr, ts.Key())
 		if err != nil {
 			return
 		}
@@ -453,11 +467,57 @@ func (h *dxhnd) handleChain(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)
 	data := map[string]interface{}{
-		"head":   head,
+		"ts":     ts,
+		"isHead": r.FormValue("epoch") == "",
 		"actors": actors,
 	}
 	if err := tpl.Execute(w, data); err != nil {
 		fmt.Println(err)
 		return
 	}
+}
+
+func (h *dxhnd) handleChainActor(w http.ResponseWriter, r *http.Request) {
+	ts, err := h.api.ChainHead(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if r.FormValue("epoch") != "" {
+		ep, err := strconv.ParseInt(r.FormValue("epoch"), 0, 64)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		ts, err = h.api.ChainGetTipSetByHeight(r.Context(), abi.ChainEpoch(ep), ts.Key())
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	addr, err := address.NewFromString(r.FormValue("addr"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	act, err := h.api.StateGetActor(r.Context(), addr, ts.Key())
+	if err != nil {
+		return
+	}
+
+	var data bytes.Buffer
+	if err := act.MarshalCBOR(&data); err != nil {
+		return
+	}
+
+	c, err := (&cid.V1Builder{Codec: cid.DagCBOR, MhType: multihash.IDENTITY}).Sum(data.Bytes())
+	if err != nil {
+		return
+	}
+
+	http.Redirect(w, r, "/view/ipfs/"+c.String()+"/?view=ipld", http.StatusFound)
 }

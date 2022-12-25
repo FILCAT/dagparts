@@ -20,21 +20,22 @@
     <hr>
     <h3>Filecoin chain</h3>
     <div>
-        <span><a href="/">explore</a> / chain / filecoin / <a href="/chain/filecoin/mainnet">mainnet</a></span>
+        <span><a href="/">explore</a> / chain / filecoin / <a href="/chain/filecoin/mainnet">mainnet</a> /
+            @<a href="/chain/filecoin/mainnet?epoch={{.ts.Height}}">{{.ts.Height}}</a></span>
     </div>
     <hr>
     <!--/header-->
 
-    <div>HEAD</div>
-    {{range .head.Cids}}
+    <h4>TipSet @{{.ts.Height}}{{if .isHead}} <i>HEAD</i>{{end}}</h4>
+    {{range .ts.Cids}}
         <div>
             <span><a href="/view/ipfs/{{.}}/?view=ipld">{{.}}</a></span>
         </div>
     {{end}}
 
-    <div>STATE ROOT</div>
+    <h4>PARENT STATE ROOT</h4>
     <div>
-        <span><a href="/view/ipfs/{{.head.ParentState}}/?view=ipld">{{.head.ParentState}}</a></span>
+        <span><a href="/view/ipfs/{{.ts.ParentState}}/?view=ipld">{{.ts.ParentState}}</a></span>
     </div>
     <div>
         <span><a href="/view/ipfs/{{index .actors "f00"}}/?view=ipld">[f00:system]</a></span>
@@ -52,10 +53,17 @@
         JUMP TO
     </div>
     <div>
-        <input type="text" placeholder="EPOCH / ADDRESS">
+        <form method="get" action="/chain/filecoin/mainnet">
+            <input name="epoch" type="text" placeholder="EPOCH">
+            <input type="submit" value="go">
+        </form>
     </div>
     <div>
-        <a href="#">[GO (todo)]</a>
+        <form method="get" action="/chain/filecoin/mainnet/actor">
+            <input name="addr" type="text" placeholder="ADDRESS">
+            <input type="submit" value="go">
+            <input type="hidden" name="epoch" value="{{.ts.Height}}">
+        </form>
     </div>
 </body>
 </html>
