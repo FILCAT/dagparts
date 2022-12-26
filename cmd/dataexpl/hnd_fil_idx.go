@@ -10,6 +10,7 @@ import (
 	cliutil "github.com/filecoin-project/lotus/cli/util"
 	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/multiformats/go-multiaddr"
 	"github.com/multiformats/go-multihash"
 	"html/template"
 	"net/http"
@@ -251,6 +252,33 @@ func (h *dxhnd) handleMinerSectors(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	mi, err := h.api.StateMinerInfo(r.Context(), ma, now.Key())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	multiaddrs := make([]multiaddr.Multiaddr, 0, len(mi.Multiaddrs))
+	for i, a := range mi.Multiaddrs {
+		maddr, err := multiaddr.NewMultiaddrBytes(a)
+		if err != nil {
+			log.Warnf("parsing multiaddr %d (%x): %s", i, a, err)
+			continue
+		}
+		multiaddrs = append(multiaddrs, maddr)
+	}
+
+	if mi.PeerId != nil {
+		multiaddrs, err = peer.AddrInfoToP2pAddrs(&peer.AddrInfo{
+			ID:    *mi.PeerId,
+			Addrs: multiaddrs,
+		})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
 	tpl, err := template.New("sectors.gohtml").Funcs(map[string]interface{}{
 		"EpochTime": func(e abi.ChainEpoch) string {
 			return cliutil.EpochTime(now.Height(), e)
@@ -267,6 +295,8 @@ func (h *dxhnd) handleMinerSectors(w http.ResponseWriter, r *http.Request) {
 		"maddr":   ma,
 		"sectors": ms,
 		"deals":   commps,
+		"info":    mi,
+		"addrs":   multiaddrs,
 
 		"qap": types.SizeStr(mp.MinerPower.QualityAdjPower),
 		"raw": types.SizeStr(mp.MinerPower.RawBytePower),

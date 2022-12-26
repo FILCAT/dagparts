@@ -31,6 +31,10 @@
         <tr><td><b>SP</b></td><td>{{.maddr}}</td></tr>
         <tr><td><b>Power</b></td><td>{{.qap}}</td></tr>
         <tr><td><b>Raw</b></td><td>{{.raw}}</td></tr>
+        <tr><td><b>PeerID</b></td><td>{{.info.PeerId}}</td></tr>
+        {{range .addrs}}
+        <tr><td><b>Multiaddr</b></td><td>{{.}}</td></tr>
+        {{end}}
         <tr><td><b>Ping</b></td><td><span id="ping{{.maddr}}" onload="pingMiner()">pinging..</span></td></tr>
     </table>
 
