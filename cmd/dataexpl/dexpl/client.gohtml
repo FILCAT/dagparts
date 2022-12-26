@@ -24,6 +24,29 @@
 </div>
 <hr>
 <!--/header-->
+<h4>Providers</h4>
+<table>
+    <tr><td>Provider</td><td>Deals</td><td>Ping</td></tr>
+    {{range .providers}}
+        <tr><td><a href="/minersectors/{{.K}}">{{.K}}</a></td><td>{{.V}}</td><td><span id="ping{{.K}}" onload="pingMiner()">..</span></td></tr>
+    {{end}}
+</table>
+<script>
+    async function pingMiner(ma) {
+        document.getElementById("ping"+ma).innerText = "connecting.."
+
+        let r = await fetch("/ping/miner/"+ma)
+        document.getElementById("ping"+ma).innerText = (await r.text()).split('\n')[0]
+    }
+
+    addEventListener('load', (_) => {
+        {{range .providers}}
+        pingMiner('{{.K}}')
+        {{end}}
+    })
+</script>
+
+<h4>Deals</h4>
 <div>
     {{range .deals}}
         <div>

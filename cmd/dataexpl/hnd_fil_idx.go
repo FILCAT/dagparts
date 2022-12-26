@@ -12,10 +12,12 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/multiformats/go-multihash"
+	"golang.org/x/exp/constraints"
 	"html/template"
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"sync"
 
@@ -143,6 +145,11 @@ func (h *dxhnd) handleClient(w http.ResponseWriter, r *http.Request) {
 	}
 	cf.Close()
 
+	providers := map[address.Address]int{}
+	for _, d := range clDeals {
+		providers[d.Prov]++
+	}
+
 	tpl, err := template.ParseFS(dres, "dexpl/client.gohtml")
 	if err != nil {
 		fmt.Println(err)
@@ -153,13 +160,37 @@ func (h *dxhnd) handleClient(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	data := map[string]interface{}{
-		"deals": clDeals,
-		"addr":  ma,
+		"deals":     clDeals,
+		"addr":      ma,
+		"providers": intoList(providers),
 	}
 	if err := tpl.Execute(w, data); err != nil {
 		fmt.Println(err)
 		return
 	}
+}
+
+func intoList[K address.Address, V constraints.Ordered](in map[K]V) []struct {
+	K K
+	V V
+} {
+	var out []struct {
+		K K
+		V V
+	}
+
+	for k, v := range in {
+		out = append(out, struct {
+			K K
+			V V
+		}{K: k, V: v})
+	}
+
+	sort.Slice(out, func(i, j int) bool {
+		return out[i].V > out[j].V
+	})
+
+	return out
 }
 
 type DealInfo struct {
