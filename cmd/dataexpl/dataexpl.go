@@ -265,7 +265,7 @@ var dataexplCmd = &cli.Command{
 		m.HandleFunc("/", dh.handleIndex).Methods("GET")
 		m.HandleFunc("/chain/filecoin/mainnet", dh.handleChain).Methods("GET")
 		m.HandleFunc("/chain/filecoin/mainnet/actor", dh.handleChainActor).Methods("GET")
-		m.HandleFunc("/miners", dh.handleMiners).Methods("GET")
+		m.HandleFunc("/providers", dh.handleMiners).Methods("GET")
 		m.HandleFunc("/ping/miner/{id}", dh.handlePingMiner).Methods("GET")
 		m.HandleFunc("/ping/peer/ipfs/{id}", dh.handlePingIPFS).Methods("GET")
 		m.HandleFunc("/ping/peer/lotus/{id}", dh.handlePingLotus).Methods("GET")
@@ -285,9 +285,13 @@ var dataexplCmd = &cli.Command{
 
 		m.HandleFunc("/find/{cid}", dh.handleFind).Methods("GET")
 
-		server := &http.Server{Addr: ":5658", Handler: m, BaseContext: func(_ net.Listener) context.Context {
-			return cctx.Context
-		}}
+		server := &http.Server{
+			Addr:    ":5658",
+			Handler: m,
+			BaseContext: func(_ net.Listener) context.Context {
+				return cctx.Context
+			},
+		}
 		go func() {
 			_ = server.ListenAndServe()
 		}()
