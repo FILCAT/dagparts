@@ -11,6 +11,7 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-merkledag"
 	"github.com/ipfs/go-unixfs"
+	"github.com/ipld/go-car"
 	"github.com/urfave/cli/v2"
 	"html/template"
 	"io"
@@ -133,6 +134,60 @@ func (h *dxhnd) handleCar(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	_, _ = io.Copy(w, reader)
 	_ = reader.Close()
+}
+
+func (h *dxhnd) handleCarIPFS(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+
+	dcid, err := cid.Parse(vars["cid"])
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	sg := h.getIpfs(r.Context(), dcid, vars["path"])
+
+	// retr root
+
+	ssb := builder.NewSelectorSpecBuilder(basicnode.Prototype.Any)
+	sel := ssb.ExploreRecursive(selector.RecursionLimitNone(), ssb.ExploreUnion(
+		ssb.Matcher(),
+		ssb.ExploreAll(ssb.ExploreRecursiveEdge()),
+	))
+
+	root, ds, _, done, err := sg(sel)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer done()
+
+	w.Header().Set("Content-Type", "application/vnd.ipld.car")
+
+	name := r.FormValue("filename")
+	if name == "" {
+		name = dcid.String()
+	}
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s.car"`, name))
+
+	w.WriteHeader(http.StatusOK)
+
+	if err := car.WriteCarWithWalker(r.Context(), ds, []cid.Cid{root}, w, CarWalkFunc); err != nil {
+		log.Errorw("write car", "error", err)
+		return
+	}
+}
+
+func CarWalkFunc(nd format.Node) (out []*format.Link, err error) {
+	for _, link := range nd.Links() {
+		pref := link.Cid.Prefix()
+		if pref.Codec == cid.FilCommitmentSealed || pref.Codec == cid.FilCommitmentUnsealed {
+			continue
+		}
+		out = append(out, link)
+	}
+
+	return out, nil
 }
 
 var dataexplCmd = &cli.Command{
@@ -279,6 +334,7 @@ var dataexplCmd = &cli.Command{
 		m.HandleFunc("/deal/{id}", dh.handleDeal).Methods("GET")
 		m.HandleFunc("/view/ipfs/{cid}/{path:.*}", dh.handleViewIPFS).Methods("GET", "HEAD")
 		m.HandleFunc("/view/{mid}/{piece}/{cid}/{path:.*}", dh.handleViewFil).Methods("GET", "HEAD")
+		m.HandleFunc("/car/ipfs/{cid}/{path:.*}", dh.handleCarIPFS).Methods("GET", "HEAD")
 		m.HandleFunc("/car/{mid}/{piece}/{cid}/{path:.*}", dh.handleCar).Methods("GET")
 
 		m.HandleFunc("/matchdeal/{mid}/{piece}", dh.handleMatchPiece).Methods("GET")

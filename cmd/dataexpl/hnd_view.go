@@ -73,8 +73,18 @@ func (h *dxhnd) handleViewIPFS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sg := func(ss builder.SelectorSpec) (cid.Cid, format.DAGService, map[string]struct{}, func(), error) {
-		lbs, err := bstore.NewLocalIPFSBlockstore(r.Context(), true)
+	sg := h.getIpfs(r.Context(), dcid, vars["path"])
+
+	h.handleViewInner(w, r, sg, map[string]interface{}{
+		"filRetrieval": false,
+
+		"dataCid": dcid,
+	})
+}
+
+func (h *dxhnd) getIpfs(ctx context.Context, dcid cid.Cid, path string) func(ss builder.SelectorSpec) (cid.Cid, format.DAGService, map[string]struct{}, func(), error) {
+	return func(ss builder.SelectorSpec) (cid.Cid, format.DAGService, map[string]struct{}, func(), error) {
+		lbs, err := bstore.NewLocalIPFSBlockstore(ctx, true)
 		if err != nil {
 			return cid.Cid{}, nil, nil, nil, err
 		}
@@ -89,20 +99,14 @@ func (h *dxhnd) handleViewIPFS(w http.ResponseWriter, r *http.Request) {
 		bs := bstore.NewTieredBstore(bstore.Adapt(pgbs), bstore.NewMemory())
 		ds := merkledag.NewDAGService(blockservice.New(bs, offline.Exchange(bs)))
 
-		rs, err := SelectorSpecFromPath(Expression(vars["path"]), false, ss)
+		rs, err := SelectorSpecFromPath(Expression(path), false, ss)
 		if err != nil {
 			return cid.Cid{}, nil, nil, nil, xerrors.Errorf("failed to parse path-selector: %w", err)
 		}
 
-		root, links, err := findRoot(r.Context(), dcid, rs, ds)
+		root, links, err := findRoot(ctx, dcid, rs, ds)
 		return root, ds, links, func() {}, err
 	}
-
-	h.handleViewInner(w, r, sg, map[string]interface{}{
-		"filRetrieval": false,
-
-		"dataCid": dcid,
-	})
 }
 
 func (h *dxhnd) handleViewInner(w http.ResponseWriter, r *http.Request, g selGetter, tpldata map[string]interface{}) {

@@ -101,7 +101,7 @@ div.multinode {
     color: #A0A3C6;
 }
 
-.strnode, .size-m, .size-p {
+.strnode, .size-m, .size-p, .warn {
     color: #C6A0B6;
 }
 
