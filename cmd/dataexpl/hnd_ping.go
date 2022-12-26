@@ -33,7 +33,7 @@ func (h *dxhnd) handlePingMiner(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if mi.PeerId == nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "nil peerid", http.StatusInternalServerError)
 		return
 	}
 
