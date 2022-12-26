@@ -373,7 +373,7 @@ func (h *dxhnd) handleDeal(w http.ResponseWriter, r *http.Request) {
 
 	{
 		// get left side of the dag up to typeCheckDepth
-		g := getFilRetrieval(h.tempBsBld, h.apiBss, h.api, r, d.Proposal.Provider, d.Proposal.PieceCID, dcid)
+		g := h.getFilRetrieval(h.tempBsBld, r, d.Proposal.Provider, d.Proposal.PieceCID, dcid)
 
 		ssb := builder.NewSelectorSpecBuilder(basicnode.Prototype.Any)
 		root, dserv, _, done, err := g(ssb.ExploreRecursive(selector.RecursionLimitDepth(typeCheckDepth),

@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/filecoin-project/go-address"
 	"github.com/multiformats/go-multiaddr"
+	"golang.org/x/xerrors"
 	"net/http"
 	"time"
 
@@ -33,6 +35,7 @@ func (h *dxhnd) handlePingMiner(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if mi.PeerId == nil {
+		h.trackerFil.RecordPing(a, 0, errors.New("miner has no peer id"))
 		http.Error(w, "nil peerid", http.StatusInternalServerError)
 		return
 	}
@@ -57,6 +60,7 @@ func (h *dxhnd) handlePingMiner(w http.ResponseWriter, r *http.Request) {
 		defer cancel()
 
 		if err := h.api.NetConnect(ctx, pi); err != nil {
+			h.trackerFil.RecordPing(a, 0, xerrors.Errorf("net connect: %w", err))
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -65,11 +69,16 @@ func (h *dxhnd) handlePingMiner(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 
+	start := time.Now()
+
 	d, err := h.api.NetPing(ctx, pi.ID)
 	if err != nil {
+		h.trackerFil.RecordPing(a, time.Now().Sub(start), xerrors.Errorf("net ping: %w", err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	h.trackerFil.RecordPing(a, time.Now().Sub(start), nil)
 
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)

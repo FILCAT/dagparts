@@ -70,6 +70,8 @@ type dxhnd struct {
 	minerPids map[peer.ID]address.Address
 
 	tempBsBld *ctbstore.TempBsb
+
+	trackerFil *TrackerFil
 }
 
 func (h *dxhnd) handleIndex(w http.ResponseWriter, r *http.Request) {
@@ -239,6 +241,11 @@ var dataexplCmd = &cli.Command{
 
 		fmt.Println("loading miner states")
 
+		tracker, err := OpenFilTracker("filtracker.db")
+		if err != nil {
+			return err
+		}
+
 		wg.Add(len(mpcs))
 		for sa, mb := range mpcs {
 			if mb.Locked.IsZero() {
@@ -263,8 +270,13 @@ var dataexplCmd = &cli.Command{
 				if err != nil {
 					return
 				}
+
 				lk.Lock()
 				defer lk.Unlock()
+
+				if err := tracker.UpsertProvider(a); err != nil {
+					log.Errorw("upserting provider", "error", err)
+				}
 
 				mminers = append(mminers, marketMiner{
 					Addr:   a,
@@ -305,6 +317,8 @@ var dataexplCmd = &cli.Command{
 
 			apiBss:    apiBss,
 			tempBsBld: ctbstore.NewTempBsBuilder(cctx.String("blk-cache")),
+
+			trackerFil: tracker,
 		}
 
 		m := mux.NewRouter()

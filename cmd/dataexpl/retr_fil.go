@@ -63,7 +63,7 @@ func getCarFilRetrieval(ainfo cliutil.APIInfo, api lapi.FullNode, r *http.Reques
 	}
 }
 
-func getFilRetrieval(bsb *ctbstore.TempBsb, abs *apiBstoreServer, api lapi.FullNode, r *http.Request, ma address.Address, pcid, dcid cid.Cid) selGetter {
+func (h *dxhnd) getFilRetrieval(bsb *ctbstore.TempBsb, r *http.Request, ma address.Address, pcid, dcid cid.Cid) selGetter {
 	return func(ss builder.SelectorSpec) (cid.Cid, format.DAGService, map[string]struct{}, func(), error) {
 		vars := mux.Vars(r)
 
@@ -81,7 +81,7 @@ func getFilRetrieval(bsb *ctbstore.TempBsb, abs *apiBstoreServer, api lapi.FullN
 		bbs := ctbstore.NewBlocking(bstore.Adapt(cbs))
 		cbs = bbs
 
-		storeid, err := abs.MakeRemoteBstore(context.TODO(), ctbstore.NewCtxWrap(cbs, ctbstore.WithNoBlock))
+		storeid, err := h.apiBss.MakeRemoteBstore(context.TODO(), ctbstore.NewCtxWrap(cbs, ctbstore.WithNoBlock))
 		if err != nil {
 			if err := tbs.Release(); err != nil {
 				log.Errorw("release temp store", "error")
@@ -89,7 +89,7 @@ func getFilRetrieval(bsb *ctbstore.TempBsb, abs *apiBstoreServer, api lapi.FullN
 			return cid.Cid{}, nil, nil, nil, err
 		}
 
-		eref, done, err := retrieveFil(r.Context(), api, &storeid, ma, pcid, dcid, &sel, func() {
+		eref, done, err := retrieveFil(r.Context(), h.api, &storeid, ma, pcid, dcid, &sel, func() {
 			bbs.Finalize()
 			if err := tbs.Release(); err != nil {
 				log.Errorw("release temp store", "error")
