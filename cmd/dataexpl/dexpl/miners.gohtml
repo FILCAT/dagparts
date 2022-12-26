@@ -20,14 +20,19 @@
 <hr>
 <!--/header-->
 <table>
+    <tr><td><b>Provider</b></td><td>Owner</td><td>Market</td><td>Power</td><td>Ping</td></tr>
     {{range .miners}}
         <tr>
             <td>
-                <a href="/minersectors/{{.Addr}}">{{.Addr}}</a>
+                <a href="/minersectors/{{.Addr}}"><b>{{.Addr}}</b></a> (<i><a href="https://filfox.info/en/address/{{.Addr}}">filfox</a></i>)
             </td>
             <td>
-                Locked: {{.Locked.Short}}
+                {{.Owner}} (<i><a href="https://filfox.info/en/address/{{.Owner}}">filfox</a></i>)
             </td>
+            <td>
+                {{.Locked.Short}}
+            </td>
+            <td class="size-{{.QAP | sizeClass}}">{{.QAP}}</td>
             <td>
                 <span id="ping{{.Addr}}" onload="pingMiner()">..</span>
             </td>

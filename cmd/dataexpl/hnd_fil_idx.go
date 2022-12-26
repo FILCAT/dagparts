@@ -35,7 +35,9 @@ import (
 )
 
 func (h *dxhnd) handleMiners(w http.ResponseWriter, r *http.Request) {
-	tpl, err := template.ParseFS(dres, "dexpl/miners.gohtml")
+	tpl, err := template.New("miners.gohtml").Funcs(map[string]any{
+		"sizeClass": sizeClass,
+	}).ParseFS(dres, "dexpl/miners.gohtml")
 	if err != nil {
 		fmt.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)

@@ -97,15 +97,15 @@ div.multinode {
     display: block;
 }
 
-.nodekey, .size-k, .find-fastretr {
+.nodekey, .size-k, .size-t, .find-fastretr {
     color: #A0A3C6;
 }
 
-.strnode, .size-m {
+.strnode, .size-m, .size-p {
     color: #C6A0B6;
 }
 
-.numnode, .size-g, .find-verified {
+.numnode, .size-g, .size-e, .find-verified {
     color: #A0C6B0;
 }
 

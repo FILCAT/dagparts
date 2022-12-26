@@ -273,18 +273,7 @@ func (h *dxhnd) handleViewInner(w http.ResponseWriter, r *http.Request, g selGet
 			}
 
 			tpl, err := template.New("dir.gohtml").Funcs(map[string]any{
-				"sizeClass": func(s string) string {
-					switch {
-					case strings.Contains(s, "GiB"):
-						return "g"
-					case strings.Contains(s, "MiB"):
-						return "m"
-					case strings.Contains(s, "KiB"):
-						return "k"
-					default:
-						return "b"
-					}
-				},
+				"sizeClass":    sizeClass,
 				"ufsToPathSeg": unixToPathSeg,
 			}).ParseFS(dres, "dexpl/dir.gohtml")
 			if err != nil {
@@ -463,6 +452,25 @@ func tplPathSegments(p string) ([]string, []string, error) {
 type PathElem struct {
 	Name string
 	Link bool
+}
+
+func sizeClass(s string) string {
+	switch {
+	case strings.Contains(s, "EiB"):
+		return "e"
+	case strings.Contains(s, "PiB"):
+		return "p"
+	case strings.Contains(s, "TiB"):
+		return "t"
+	case strings.Contains(s, "GiB"):
+		return "g"
+	case strings.Contains(s, "MiB"):
+		return "m"
+	case strings.Contains(s, "KiB"):
+		return "k"
+	default:
+		return "b"
+	}
 }
 
 func markLinkPaths(epseg, rpseg []string, links map[string]struct{}) []PathElem {

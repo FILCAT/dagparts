@@ -51,6 +51,8 @@ var maxDirTypeChecks, typeCheckDepth int64 = 16, 15
 
 type marketMiner struct {
 	Addr   address.Address
+	Owner  address.Address
+	QAP    string
 	Locked types.FIL
 }
 
@@ -199,18 +201,25 @@ var dataexplCmd = &cli.Command{
 				defer wg.Done()
 
 				mi, err := api.StateMinerInfo(ctx, a, types.EmptyTSK)
-				if err == nil {
-					lk.Lock()
-					defer lk.Unlock()
+				if err != nil {
+					return
+				}
+				mp, err := api.StateMinerPower(ctx, a, types.EmptyTSK)
+				if err != nil {
+					return
+				}
+				lk.Lock()
+				defer lk.Unlock()
 
-					mminers = append(mminers, marketMiner{
-						Addr:   a,
-						Locked: types.FIL(mb.Locked),
-					})
+				mminers = append(mminers, marketMiner{
+					Addr:   a,
+					Owner:  mi.Owner,
+					QAP:    types.SizeStr(mp.MinerPower.QualityAdjPower),
+					Locked: types.FIL(mb.Locked),
+				})
 
-					if mi.PeerId != nil {
-						pidMiners[*mi.PeerId] = a
-					}
+				if mi.PeerId != nil {
+					pidMiners[*mi.PeerId] = a
 				}
 			}(a, mb)
 		}
