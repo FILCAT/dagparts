@@ -202,7 +202,7 @@ type DealInfo struct {
 	Size    string
 }
 
-func (h *dxhnd) handleMinerSectors(w http.ResponseWriter, r *http.Request) {
+func (h *dxhnd) handleProviderSectors(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	vars := mux.Vars(r)

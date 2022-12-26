@@ -28,7 +28,7 @@
 <table>
     <tr><td>Provider</td><td>Deals</td><td>Ping</td></tr>
     {{range .providers}}
-        <tr><td><a href="/minersectors/{{.K}}">{{.K}}</a></td><td>{{.V}}</td><td><span id="ping{{.K}}" onload="pingMiner()">..</span></td></tr>
+        <tr><td><a href="/provider/{{.K}}">{{.K}}</a></td><td>{{.V}}</td><td><span id="ping{{.K}}" onload="pingMiner()">..</span></td></tr>
     {{end}}
 </table>
 <script>
@@ -51,7 +51,7 @@
     {{range .deals}}
         <div>
             <a href="/deal/{{.Deal}}">{{.Deal}}</a>
-            <span>with <a href="/minersectors/{{.Prov}}">{{.Prov}}</a> ({{.Data}})</span>
+            <span>with <a href="/provider/{{.Prov}}">{{.Prov}}</a> ({{.Data}})</span>
         </div>
     {{end}}
 </div>

@@ -274,7 +274,7 @@ var dataexplCmd = &cli.Command{
 		}
 		m.HandleFunc("/clients", dh.handleClients).Methods("GET")
 		m.HandleFunc("/client/{id}", dh.handleClient).Methods("GET")
-		m.HandleFunc("/minersectors/{id}", dh.handleMinerSectors).Methods("GET")
+		m.HandleFunc("/provider/{id}", dh.handleProviderSectors).Methods("GET")
 
 		m.HandleFunc("/deal/{id}", dh.handleDeal).Methods("GET")
 		m.HandleFunc("/view/ipfs/{cid}/{path:.*}", dh.handleViewIPFS).Methods("GET", "HEAD")
