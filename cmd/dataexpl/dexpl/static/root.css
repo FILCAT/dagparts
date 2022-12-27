@@ -244,11 +244,13 @@ input[type=text] {
 }
 
 
-input[type=submit] {
-    width: 4em;
+input[type=submit],button {
+    /*width: 4em;*/
     padding: 12px 20px;
     margin: 0;
     box-sizing: border-box;
+
+    cursor: pointer;
 
     background-color: #454545;
     outline: none;

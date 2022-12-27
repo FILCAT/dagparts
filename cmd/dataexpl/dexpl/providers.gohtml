@@ -23,6 +23,26 @@
     <span><a href="/">explore</a> / providers</span>
 </div>
 <hr>
+
+<div>
+    <form style="display: inline-block" action="#" method="get">
+        {{if .pingAll}}
+            <button type="submit" name="ping" value="s">show with good connectivity</button>
+        {{else}}
+            <button type="submit" name="ping" value="a">don't filter by connectivity</button>
+        {{end}}
+    </form>
+    <form style="display: inline-block" action="#" method="get">
+        {{if .retrAll}}
+            <button type="submit" name="retrievals" value="s">show with successful retrievals</button>
+        {{else}}
+            <button type="submit" name="retrievals" value="a">don't filter by retrieval success</button>
+        {{end}}
+    </form>
+
+
+</div>
+
 <!--/header-->
 <i class="warn">warning: providers above 1PiB will be slow to open due to current lack of pagination</i>
 

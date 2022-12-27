@@ -47,6 +47,22 @@ func (h *dxhnd) handleMiners(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	filterPing := r.FormValue("ping") != "a"
+	filterRetrieval := r.FormValue("retrievals") == "s"
+
+	minerlist := make([]marketMiner, 0, len(h.mminers))
+	for _, m := range h.mminers {
+		if filterPing && (pstat[m.Addr] == nil || pstat[m.Addr].Success*10 <= pstat[m.Addr].Fail) {
+			continue
+		}
+
+		if filterRetrieval && (rstat[m.Addr] == nil || rstat[m.Addr].Success == 0) {
+			continue
+		}
+
+		minerlist = append(minerlist, m)
+	}
+
 	tpl, err := template.New("providers.gohtml").Funcs(map[string]any{
 		"sizeClass": sizeClass,
 	}).ParseFS(dres, "dexpl/providers.gohtml")
@@ -58,9 +74,12 @@ func (h *dxhnd) handleMiners(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)
 	data := map[string]interface{}{
-		"miners":    h.mminers,
+		"miners":    minerlist,
 		"ping":      pstat,
 		"retrieval": rstat,
+
+		"pingAll": !filterPing,
+		"retrAll": !filterRetrieval,
 	}
 	if err := tpl.Execute(w, data); err != nil {
 		fmt.Println(err)
