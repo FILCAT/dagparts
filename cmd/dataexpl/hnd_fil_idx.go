@@ -35,6 +35,12 @@ import (
 )
 
 func (h *dxhnd) handleMiners(w http.ResponseWriter, r *http.Request) {
+	pstat, err := h.trackerFil.AllProviderPingStats()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	tpl, err := template.New("providers.gohtml").Funcs(map[string]any{
 		"sizeClass": sizeClass,
 	}).ParseFS(dres, "dexpl/providers.gohtml")
@@ -47,6 +53,7 @@ func (h *dxhnd) handleMiners(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	data := map[string]interface{}{
 		"miners": h.mminers,
+		"ping":   pstat,
 	}
 	if err := tpl.Execute(w, data); err != nil {
 		fmt.Println(err)

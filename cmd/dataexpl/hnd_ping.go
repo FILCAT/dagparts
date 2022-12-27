@@ -167,3 +167,60 @@ func (h *dxhnd) handlePingIPFS(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte(fmt.Sprintf("%s", d.Round(time.Millisecond))))
 }
+
+func (h *dxhnd) pinger() {
+	ctx := context.Background()
+
+	for {
+		for _, mminer := range h.mminers {
+			a := mminer.Addr
+
+			mi, err := h.api.StateMinerInfo(ctx, a, types.EmptyTSK)
+			if err != nil {
+				time.Sleep(1 * time.Second) // api conn error
+				continue
+			}
+
+			if mi.PeerId == nil {
+				h.trackerFil.RecordPing(a, 0, errors.New("miner has no peer id"))
+				continue
+			}
+
+			multiaddrs := make([]multiaddr.Multiaddr, 0, len(mi.Multiaddrs))
+			for _, a := range mi.Multiaddrs {
+				maddr, err := multiaddr.NewMultiaddrBytes(a)
+				if err != nil {
+					continue
+				}
+				multiaddrs = append(multiaddrs, maddr)
+			}
+
+			pi := peer.AddrInfo{
+				ID:    *mi.PeerId,
+				Addrs: multiaddrs,
+			}
+
+			{
+				ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+				err := h.api.NetConnect(ctx, pi)
+				cancel()
+				if err != nil {
+					h.trackerFil.RecordPing(a, 0, xerrors.Errorf("net connect: %w", err))
+					continue
+				}
+			}
+
+			ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+			start := time.Now()
+
+			d, err := h.api.NetPing(ctx, pi.ID)
+			cancel()
+			if err != nil {
+				h.trackerFil.RecordPing(a, time.Now().Sub(start), xerrors.Errorf("net ping: %w", err))
+				continue
+			}
+
+			h.trackerFil.RecordPing(a, d, nil)
+		}
+	}
+}

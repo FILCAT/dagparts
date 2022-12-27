@@ -101,11 +101,15 @@ div.multinode {
     color: #A0A3C6;
 }
 
-.strnode, .size-m, .size-p, .warn {
+.warn {
+    color: #C6C3A0;
+}
+
+.strnode, .size-m, .size-p, .err {
     color: #C6A0B6;
 }
 
-.numnode, .size-g, .size-e, .find-verified {
+.numnode, .size-g, .size-e, .success, .find-verified {
     color: #A0C6B0;
 }
 

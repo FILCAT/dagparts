@@ -295,6 +295,8 @@ var dataexplCmd = &cli.Command{
 			return big.Cmp(abi.TokenAmount(mminers[i].Locked), abi.TokenAmount(mminers[j].Locked)) > 0
 		})
 
+		// setup server
+
 		aurl, err := cliutil.ApiAddrToUrl(ainfo.Addr)
 		if err != nil {
 			return err
@@ -365,6 +367,9 @@ var dataexplCmd = &cli.Command{
 		go func() {
 			_ = server.ListenAndServe()
 		}()
+
+		// start pinger
+		go dh.pinger()
 
 		fmt.Println("ready")
 

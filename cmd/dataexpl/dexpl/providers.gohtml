@@ -27,7 +27,8 @@
 <i class="warn">warning: providers above 1PiB will be slow to open due to current lack of pagination</i>
 
 <table>
-    <tr><td><b>Provider</b></td><td>Owner</td><td>Market</td><td>Power</td><td>Ping</td></tr>
+    <tr><td><b>Provider</b></td><td>Owner</td><td>Market</td><td>Power</td><td>Ping Success Rate</td></tr>
+    {{$ping := .ping}}
     {{range .miners}}
         <tr>
             <td>
@@ -41,24 +42,18 @@
             </td>
             <td class="size-{{.QAP | sizeClass}}">{{.QAP}}</td>
             <td>
-                <span id="ping{{.Addr}}" onload="pingMiner()">..</span>
+                {{$stat := (index $ping .Addr)}}
+                {{if ne nil $stat}}
+                    <span class="{{if $stat.IsHealthy}}success{{else}}err{{end}}">{{$stat.SuccessPct}}</span>
+                    {{(index $ping .Addr).Success}}/{{(index $ping .Addr).Fail}}
+                    {{if gt $stat.Slow 0}}<span class="warn">({{$stat.SlowPct}} Slow</span>){{end}}
+                {{else}}
+                    <span class="warn">0%</span> 0/0
+                {{end}}
+
             </td>
         </tr>
     {{end}}
 </table>
-<script>
-async function pingMiner(ma) {
-    document.getElementById("ping"+ma).innerText = "connecting.."
-
-    let r = await fetch("/ping/miner/"+ma)
-    document.getElementById("ping"+ma).innerText = (await r.text()).split('\n')[0]
-}
-
-addEventListener('load', (_) => {
-    {{range .miners}}
-        pingMiner('{{.Addr}}')
-    {{end}}
-})
-</script>
 </body>
 </html>
