@@ -8,6 +8,7 @@ import (
 	"github.com/filecoin-project/cidtravel/ctbstore"
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/lotus/node/repo"
+	"github.com/filecoin-project/pubsub"
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-merkledag"
 	"github.com/ipfs/go-unixfs"
@@ -70,6 +71,7 @@ type dxhnd struct {
 	minerPids map[peer.ID]address.Address
 
 	tempBsBld *ctbstore.TempBsb
+	filRetrPs pubsub.PubSub
 
 	trackerFil *TrackerFil
 }
@@ -111,7 +113,7 @@ func (h *dxhnd) handleCar(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// retr root
-	g := getCarFilRetrieval(h.ainfo, h.api, r, ma, pcid, dcid)
+	g := h.getCarFilRetrieval(r, ma, pcid, dcid)
 
 	ssb := builder.NewSelectorSpecBuilder(basicnode.Prototype.Any)
 	sel := ssb.ExploreRecursive(selector.RecursionLimitNone(), ssb.ExploreUnion(

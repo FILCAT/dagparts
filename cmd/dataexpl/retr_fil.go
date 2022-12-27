@@ -34,7 +34,7 @@ import (
 
 type selGetter func(ss builder.SelectorSpec) (cid.Cid, format.DAGService, map[string]struct{}, func(), error)
 
-func getCarFilRetrieval(ainfo cliutil.APIInfo, api lapi.FullNode, r *http.Request, ma address.Address, pcid, dcid cid.Cid) func(ss builder.SelectorSpec) (io.ReadCloser, error) {
+func (h *dxhnd) getCarFilRetrieval(r *http.Request, ma address.Address, pcid, dcid cid.Cid) func(ss builder.SelectorSpec) (io.ReadCloser, error) {
 	return func(ss builder.SelectorSpec) (io.ReadCloser, error) {
 		vars := mux.Vars(r)
 
@@ -43,7 +43,7 @@ func getCarFilRetrieval(ainfo cliutil.APIInfo, api lapi.FullNode, r *http.Reques
 			return nil, err
 		}
 
-		eref, done, err := retrieveFil(r.Context(), api, nil, ma, pcid, dcid, &sel, nil)
+		eref, done, err := h.retrieveFil(r.Context(), h.api, nil, ma, pcid, dcid, &sel, nil)
 		if err != nil {
 			return nil, xerrors.Errorf("retrieve: %w", err)
 		}
@@ -54,7 +54,7 @@ func getCarFilRetrieval(ainfo cliutil.APIInfo, api lapi.FullNode, r *http.Reques
 			ExportMerkleProof: true,
 		})
 
-		rc, err := cliutil.ClientExportStream(ainfo.Addr, ainfo.AuthHeader(), *eref, true)
+		rc, err := cliutil.ClientExportStream(h.ainfo.Addr, h.ainfo.AuthHeader(), *eref, true)
 		if err != nil {
 			return nil, err
 		}
@@ -89,7 +89,7 @@ func (h *dxhnd) getFilRetrieval(bsb *ctbstore.TempBsb, r *http.Request, ma addre
 			return cid.Cid{}, nil, nil, nil, err
 		}
 
-		eref, done, err := retrieveFil(r.Context(), h.api, &storeid, ma, pcid, dcid, &sel, func() {
+		eref, done, err := h.retrieveFil(r.Context(), &storeid, ma, pcid, dcid, &sel, func() {
 			bbs.Finalize()
 			if err := tbs.Release(); err != nil {
 				log.Errorw("release temp store", "error")
@@ -126,147 +126,139 @@ func (h *dxhnd) getFilRetrieval(bsb *ctbstore.TempBsb, r *http.Request, ma addre
 	}
 }
 
-func retrieveFil(ctx context.Context, fapi lapi.FullNode, apiStore *lapi.RemoteStoreID, minerAddr address.Address, pieceCid, file cid.Cid, sel *lapi.Selector, retrDone func()) (*lapi.ExportRef, func(), error) {
-	payer, err := fapi.WalletDefaultAddress(ctx)
+func (h *dxhnd) retrieveFil(ctx context.Context, apiStore *lapi.RemoteStoreID, minerAddr address.Address, pieceCid, file cid.Cid, sel *lapi.Selector, retrDone func()) (*lapi.ExportRef, func(), error) {
+	payer, err := h.api.WalletDefaultAddress(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	var eref *lapi.ExportRef
-
-	// no local found, so make a retrieval
-	if eref == nil {
-		var offer lapi.QueryOffer
-		{ // Directed retrieval
-			offer, err = fapi.ClientMinerQueryOffer(ctx, minerAddr, file, &pieceCid)
-			if err != nil {
-				return nil, nil, xerrors.Errorf("offer: %w", err)
-			}
-		}
-		if offer.Err != "" {
-			return nil, nil, fmt.Errorf("offer error: %s", offer.Err)
-		}
-
-		maxPrice := big.Zero()
-		//maxPrice := big.NewInt(6818260582400)
-
-		if offer.MinPrice.GreaterThan(maxPrice) {
-			return nil, nil, xerrors.Errorf("failed to find offer satisfying maxPrice: %s (min %s, %s)", maxPrice, offer.MinPrice, types.FIL(offer.MinPrice))
-		}
-
-		o := offer.Order(payer)
-		o.DataSelector = sel
-		o.RemoteStore = apiStore
-
-		ctx, cancel := context.WithCancel(ctx)
-
-		// todo local pubsub
-		subscribeEvents, err := fapi.ClientGetRetrievalUpdates(ctx)
+	var offer lapi.QueryOffer
+	{ // Directed retrieval
+		offer, err = h.api.ClientMinerQueryOffer(ctx, minerAddr, file, &pieceCid)
 		if err != nil {
-			cancel()
-			return nil, nil, xerrors.Errorf("error setting up retrieval updates: %w", err)
+			return nil, nil, xerrors.Errorf("offer: %w", err)
 		}
-		retrievalRes, err := fapi.ClientRetrieve(ctx, o)
-		if err != nil {
-			cancel()
-			return nil, nil, xerrors.Errorf("error setting up retrieval: %w", err)
-		}
-
-		start := time.Now()
-		resCh := make(chan error, 1)
-		var resSent bool
-
-		go func() {
-			defer func() {
-				if retrDone != nil {
-					retrDone()
-				}
-			}()
-			defer cancel()
-
-			for {
-				var evt lapi.RetrievalInfo
-				select {
-				case <-ctx.Done():
-					if !resSent {
-						go func() {
-							err := fapi.ClientCancelRetrievalDeal(context.Background(), retrievalRes.DealID)
-							if err != nil {
-								log.Errorw("cancelling deal failed", "error", err)
-							}
-						}()
-					}
-
-					resCh <- xerrors.New("Retrieval Timed Out")
-					return
-				case evt = <-subscribeEvents:
-					if evt.ID != retrievalRes.DealID {
-						// we can't check the deal ID ahead of time because:
-						// 1. We need to subscribe before retrieving.
-						// 2. We won't know the deal ID until after retrieving.
-						continue
-					}
-				}
-
-				event := "New"
-				if evt.Event != nil {
-					event = retrievalmarket.ClientEvents[*evt.Event]
-				}
-
-				fmt.Printf("Recv %s, Paid %s, %s (%s), %s\n",
-					types.SizeStr(types.NewInt(evt.BytesReceived)),
-					types.FIL(evt.TotalPaid),
-					strings.TrimPrefix(event, "ClientEvent"),
-					strings.TrimPrefix(retrievalmarket.DealStatuses[evt.Status], "DealStatus"),
-					time.Now().Sub(start).Truncate(time.Millisecond),
-				)
-
-				switch evt.Status {
-				case retrievalmarket.DealStatusOngoing:
-					if apiStore != nil && !resSent {
-						resCh <- nil
-						resSent = true
-					}
-				case retrievalmarket.DealStatusCompleted:
-					if !resSent {
-						resCh <- nil
-					}
-					return
-				case retrievalmarket.DealStatusRejected:
-					if !resSent {
-						resCh <- xerrors.Errorf("Retrieval Proposal Rejected: %s", evt.Message)
-					}
-					return
-				case
-					retrievalmarket.DealStatusDealNotFound,
-					retrievalmarket.DealStatusErrored:
-					if !resSent {
-						resCh <- xerrors.Errorf("Retrieval Error: %s", evt.Message)
-					}
-					return
-				}
-			}
-
-		}()
-
-		err = <-resCh
-		if err != nil {
-			return nil, nil, err
-		}
-
-		eref = &lapi.ExportRef{
-			Root:   file,
-			DealID: retrievalRes.DealID,
-		}
-		return eref, func() {
-			err := fapi.ClientCancelRetrievalDeal(context.Background(), retrievalRes.DealID)
-			if err != nil {
-				log.Errorw("cancelling deal failed", "error", err)
-			}
-		}, nil
+	}
+	if offer.Err != "" {
+		return nil, nil, fmt.Errorf("offer error: %s", offer.Err)
 	}
 
-	return eref, func() {}, nil
+	maxPrice := big.Zero()
+	//maxPrice := big.NewInt(6818260582400)
+
+	if offer.MinPrice.GreaterThan(maxPrice) {
+		return nil, nil, xerrors.Errorf("failed to find offer satisfying maxPrice: %s (min %s, %s)", maxPrice, offer.MinPrice, types.FIL(offer.MinPrice))
+	}
+
+	o := offer.Order(payer)
+	o.DataSelector = sel
+	o.RemoteStore = apiStore
+
+	ctx, cancel := context.WithCancel(ctx)
+
+	// todo local pubsub
+	subscribeEvents, err := h.api.ClientGetRetrievalUpdates(ctx)
+	if err != nil {
+		cancel()
+		return nil, nil, xerrors.Errorf("error setting up retrieval updates: %w", err)
+	}
+	retrievalRes, err := h.api.ClientRetrieve(ctx, o)
+	if err != nil {
+		cancel()
+		return nil, nil, xerrors.Errorf("error setting up retrieval: %w", err)
+	}
+
+	start := time.Now()
+	resCh := make(chan error, 1)
+	var resSent bool
+
+	go func() {
+		defer func() {
+			if retrDone != nil {
+				retrDone()
+			}
+		}()
+		defer cancel()
+
+		for {
+			var evt lapi.RetrievalInfo
+			select {
+			case <-ctx.Done():
+				if !resSent {
+					go func() {
+						err := h.api.ClientCancelRetrievalDeal(context.Background(), retrievalRes.DealID)
+						if err != nil {
+							log.Errorw("cancelling deal failed", "error", err)
+						}
+					}()
+				}
+
+				resCh <- xerrors.New("Retrieval Timed Out")
+				return
+			case evt = <-subscribeEvents:
+				if evt.ID != retrievalRes.DealID {
+					// we can't check the deal ID ahead of time because:
+					// 1. We need to subscribe before retrieving.
+					// 2. We won't know the deal ID until after retrieving.
+					continue
+				}
+			}
+
+			event := "New"
+			if evt.Event != nil {
+				event = retrievalmarket.ClientEvents[*evt.Event]
+			}
+
+			fmt.Printf("Recv %s, Paid %s, %s (%s), %s\n",
+				types.SizeStr(types.NewInt(evt.BytesReceived)),
+				types.FIL(evt.TotalPaid),
+				strings.TrimPrefix(event, "ClientEvent"),
+				strings.TrimPrefix(retrievalmarket.DealStatuses[evt.Status], "DealStatus"),
+				time.Now().Sub(start).Truncate(time.Millisecond),
+			)
+
+			switch evt.Status {
+			case retrievalmarket.DealStatusOngoing:
+				if apiStore != nil && !resSent {
+					resCh <- nil
+					resSent = true
+				}
+			case retrievalmarket.DealStatusCompleted:
+				if !resSent {
+					resCh <- nil
+				}
+				return
+			case retrievalmarket.DealStatusRejected:
+				if !resSent {
+					resCh <- xerrors.Errorf("Retrieval Proposal Rejected: %s", evt.Message)
+				}
+				return
+			case
+				retrievalmarket.DealStatusDealNotFound,
+				retrievalmarket.DealStatusErrored:
+				if !resSent {
+					resCh <- xerrors.Errorf("Retrieval Error: %s", evt.Message)
+				}
+				return
+			}
+		}
+	}()
+
+	err = <-resCh
+	if err != nil {
+		return nil, nil, err
+	}
+
+	eref := &lapi.ExportRef{
+		Root:   file,
+		DealID: retrievalRes.DealID,
+	}
+	return eref, func() {
+		err := h.api.ClientCancelRetrievalDeal(context.Background(), retrievalRes.DealID)
+		if err != nil {
+			log.Errorw("cancelling deal failed", "error", err)
+		}
+	}, nil
 }
 
 func pathToSel(psel string, matchTraversal bool, sub builder.SelectorSpec) (lapi.Selector, error) {
