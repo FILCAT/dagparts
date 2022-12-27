@@ -10,6 +10,7 @@ import (
 	"github.com/filecoin-project/lotus/node/repo"
 	"github.com/filecoin-project/pubsub"
 	"github.com/ipfs/go-cid"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/ipfs/go-merkledag"
 	"github.com/ipfs/go-unixfs"
 	"github.com/ipld/go-car"
@@ -213,6 +214,8 @@ var dataexplCmd = &cli.Command{
 		},
 	},
 	Action: func(cctx *cli.Context) error {
+		logging.SetAllLoggers(logging.LevelInfo)
+
 		api, closer, err := cliutil.GetFullNodeAPIV1(cctx)
 		if err != nil {
 			return err

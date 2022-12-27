@@ -8,6 +8,7 @@ require (
 	github.com/filecoin-project/go-state-types v0.10.0-alpha-2
 	github.com/filecoin-project/index-provider v0.8.1
 	github.com/filecoin-project/lotus v1.19.0
+	github.com/filecoin-project/pubsub v1.0.0
 	github.com/filecoin-project/storetheindex v0.4.17
 	github.com/gabriel-vasile/mimetype v1.4.1
 	github.com/google/uuid v1.3.0
@@ -28,9 +29,11 @@ require (
 	github.com/ipfs/go-merkledag v0.8.1
 	github.com/ipfs/go-unixfs v0.3.1
 	github.com/ipfs/go-unixfsnode v1.4.0
+	github.com/ipld/go-car v0.4.0
 	github.com/ipld/go-codec-dagpb v1.3.2
 	github.com/ipld/go-ipld-prime v0.17.0
 	github.com/libp2p/go-libp2p v0.22.0
+	github.com/mattn/go-sqlite3 v1.14.16
 	github.com/multiformats/go-multiaddr v0.6.0
 	github.com/multiformats/go-multihash v0.2.1
 	github.com/stretchr/testify v1.8.0
@@ -115,7 +118,6 @@ require (
 	github.com/ipfs/go-path v0.3.0 // indirect
 	github.com/ipfs/go-verifcid v0.0.1 // indirect
 	github.com/ipfs/interface-go-ipfs-core v0.7.0 // indirect
-	github.com/ipld/go-car v0.4.0 // indirect
 	github.com/ipld/go-ipld-selector-text-lite v0.0.1 // indirect
 	github.com/jbenet/goprocess v0.1.4 // indirect
 	github.com/jessevdk/go-flags v1.4.0 // indirect
@@ -131,7 +133,6 @@ require (
 	github.com/magefile/mage v1.9.0 // indirect
 	github.com/mattn/go-isatty v0.0.16 // indirect
 	github.com/mattn/go-pointer v0.0.1 // indirect
-	github.com/mattn/go-sqlite3 v1.14.16 // indirect
 	github.com/miekg/dns v1.1.50 // indirect
 	github.com/minio/blake2b-simd v0.0.0-20160723061019-3f5f724cb5b1 // indirect
 	github.com/minio/sha256-simd v1.0.0 // indirect

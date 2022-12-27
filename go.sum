@@ -269,6 +269,8 @@ github.com/filecoin-project/index-provider v0.8.1 h1:ggoBWvMSWR91HZQCWfv8SZjoTGN
 github.com/filecoin-project/index-provider v0.8.1/go.mod h1:c/Ym5HtWPp9NQgNc9dgSBMpSNsZ/DE9FEi9qVubl5RM=
 github.com/filecoin-project/lotus v1.19.0 h1:DEk+vYSwpUGfJE9k+EqRYOtjgDv6b7yC3s2oc8jqsh8=
 github.com/filecoin-project/lotus v1.19.0/go.mod h1:NFGujQadzd5XSW4EzCIhCzXAJeCRs9pymcCjkJc5bV4=
+github.com/filecoin-project/pubsub v1.0.0 h1:ZTmT27U07e54qV1mMiQo4HDr0buo8I1LDHBYLXlsNXM=
+github.com/filecoin-project/pubsub v1.0.0/go.mod h1:GkpB33CcUtUNrLPhJgfdy4FDx4OMNR9k+46DHx/Lqrg=
 github.com/filecoin-project/specs-actors v0.9.4/go.mod h1:BStZQzx5x7TmCkLv0Bpa07U6cPKol6fd3w9KjMPZ6Z4=
 github.com/filecoin-project/specs-actors v0.9.13/go.mod h1:TS1AW/7LbG+615j4NsjMK1qlpAwaFsG9w0V2tg2gSao=
 github.com/filecoin-project/specs-actors v0.9.15-0.20220514164640-94e0d5e123bd/go.mod h1:pjGEe3QlWtK20ju/aFRsiArbMX6Cn8rqEhhsiCM9xYE=

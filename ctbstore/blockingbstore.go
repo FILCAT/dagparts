@@ -2,7 +2,6 @@ package ctbstore
 
 import (
 	"context"
-	"fmt"
 	"github.com/ipfs/go-cid"
 	"github.com/multiformats/go-multihash"
 	"sync"
@@ -71,7 +70,7 @@ func (b *BlockReadBs) Has(ctx context.Context, cid cid.Cid) (bool, error) {
 		return false, err
 	}
 	if !has {
-		fmt.Println("wait has")
+		//fmt.Println("wait has")
 		if err := b.waitForMh(ctx, cid.Hash()); err != nil {
 			return false, xerrors.Errorf("wait has: %w", err)
 		}
@@ -86,19 +85,19 @@ func (b *BlockReadBs) Has(ctx context.Context, cid cid.Cid) (bool, error) {
 }
 
 func (b *BlockReadBs) Get(ctx context.Context, c cid.Cid) (blocks.Block, error) {
-	fmt.Println("blocking get ", c)
+	//fmt.Println("blocking get ", c)
 
 	blk, err := b.sub.Get(ctx, c)
 	if err == nil {
 		return blk, err
 	}
 	if ipld.IsNotFound(err) {
-		fmt.Println("wait get ", c)
+		//fmt.Println("wait get ", c)
 		if err := b.waitForMh(ctx, c.Hash()); err != nil {
 			return nil, err
 		}
 
-		fmt.Println("get avail ", c)
+		//fmt.Println("get avail ", c)
 
 		return b.sub.Get(ctx, c)
 	}
@@ -111,7 +110,7 @@ func (b *BlockReadBs) GetSize(ctx context.Context, c cid.Cid) (int, error) {
 		return blk, err
 	}
 	if ipld.IsNotFound(err) {
-		fmt.Println("wait get")
+		//fmt.Println("wait get")
 		if err := b.waitForMh(ctx, c.Hash()); err != nil {
 			return 0, err
 		}
@@ -128,14 +127,14 @@ func (b *BlockReadBs) availableMh(mh multihash.Multihash) {
 
 	default:
 		if wch, ok := b.waiting[string(mh)]; ok {
-			fmt.Println("avail md ", mh)
+			//fmt.Println("avail md ", mh)
 			close(wch)
 		}
 	}
 }
 
 func (b *BlockReadBs) Put(ctx context.Context, block blocks.Block) error {
-	fmt.Println("blocking put ", block.Cid())
+	//fmt.Println("blocking put ", block.Cid())
 
 	if err := b.sub.Put(ctx, block); err != nil {
 		return err
@@ -180,7 +179,7 @@ func (b *BlockReadBs) View(ctx context.Context, c cid.Cid, callback func([]byte)
 		return err
 	}
 	if ipld.IsNotFound(err) {
-		fmt.Println("wait view")
+		//fmt.Println("wait view")
 		if err := b.waitForMh(ctx, c.Hash()); err != nil {
 			return err
 		}

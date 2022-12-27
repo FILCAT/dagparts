@@ -43,7 +43,7 @@ func (h *dxhnd) getCarFilRetrieval(r *http.Request, ma address.Address, pcid, dc
 			return nil, err
 		}
 
-		eref, done, err := h.retrieveFil(r.Context(), h.api, nil, ma, pcid, dcid, &sel, nil)
+		eref, done, err := h.retrieveFil(r.Context(), nil, ma, pcid, dcid, &sel, nil)
 		if err != nil {
 			return nil, xerrors.Errorf("retrieve: %w", err)
 		}
@@ -170,6 +170,7 @@ func (h *dxhnd) retrieveFil(ctx context.Context, apiStore *lapi.RemoteStoreID, m
 		}
 	}
 	if offer.Err != "" {
+		// todo record too
 		return nil, nil, fmt.Errorf("offer error: %s", offer.Err)
 	}
 
@@ -192,6 +193,9 @@ func (h *dxhnd) retrieveFil(ctx context.Context, apiStore *lapi.RemoteStoreID, m
 		cancel()
 		return nil, nil, xerrors.Errorf("error setting up retrieval: %w", err)
 	}
+
+	log := log.With("id", retrievalRes.DealID, "miner", minerAddr, "file", file, "piece", pieceCid)
+	log.Infow("retrieval started")
 
 	// todo re-sub on id-topic specific channel
 
@@ -222,8 +226,11 @@ func (h *dxhnd) retrieveFil(ctx context.Context, apiStore *lapi.RemoteStoreID, m
 				}
 
 				resCh <- xerrors.New("Retrieval Timed Out")
+
+				log.Infow("retrieval done", "reason", "timed out", "duration", time.Since(start))
 				return
-			case evt = <-subscribeEvents:
+			case evti := <-subscribeEvents:
+				evt = evti.(lapi.RetrievalInfo)
 				if evt.ID != retrievalRes.DealID {
 					// we can't check the deal ID ahead of time because:
 					// 1. We need to subscribe before retrieving.
@@ -255,11 +262,13 @@ func (h *dxhnd) retrieveFil(ctx context.Context, apiStore *lapi.RemoteStoreID, m
 				if !resSent {
 					resCh <- nil
 				}
+				log.Infow("retrieval done", "reason", "completed", "duration", time.Since(start))
 				return
 			case retrievalmarket.DealStatusRejected:
 				if !resSent {
 					resCh <- xerrors.Errorf("Retrieval Proposal Rejected: %s", evt.Message)
 				}
+				log.Infow("retrieval done", "reason", "rejected", "duration", time.Since(start))
 				return
 			case
 				retrievalmarket.DealStatusDealNotFound,
@@ -267,6 +276,7 @@ func (h *dxhnd) retrieveFil(ctx context.Context, apiStore *lapi.RemoteStoreID, m
 				if !resSent {
 					resCh <- xerrors.Errorf("Retrieval Error: %s", evt.Message)
 				}
+				log.Infow("retrieval done", "reason", "errored/not found", "duration", time.Since(start))
 				return
 			}
 		}
