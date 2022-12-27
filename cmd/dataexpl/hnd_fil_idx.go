@@ -63,6 +63,24 @@ func (h *dxhnd) handleMiners(w http.ResponseWriter, r *http.Request) {
 		minerlist = append(minerlist, m)
 	}
 
+	sort.SliceStable(minerlist, func(i, j int) bool {
+		si := derefOr(rstat[minerlist[i].Addr], RetrievalStats{})
+		sj := derefOr(rstat[minerlist[j].Addr], RetrievalStats{})
+
+		if si.Success == sj.Success {
+			pi := derefOr(pstat[minerlist[i].Addr], ProviderPingStats{})
+			pj := derefOr(pstat[minerlist[j].Addr], ProviderPingStats{})
+
+			// rate is zero if no pings
+			pirate := float64(pi.Success+1) / float64(pi.Success+pi.Fail+1)
+			pjrate := float64(pj.Success+1) / float64(pj.Success+pj.Fail+1)
+
+			return pirate > pjrate
+		}
+
+		return si.Success > sj.Success
+	})
+
 	tpl, err := template.New("providers.gohtml").Funcs(map[string]any{
 		"sizeClass": sizeClass,
 	}).ParseFS(dres, "dexpl/providers.gohtml")
@@ -85,6 +103,13 @@ func (h *dxhnd) handleMiners(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(err)
 		return
 	}
+}
+
+func derefOr[T any](v *T, def T) T {
+	if v == nil {
+		return def
+	}
+	return *v
 }
 
 func (h *dxhnd) handleDeals(w http.ResponseWriter, r *http.Request) {

@@ -187,7 +187,7 @@ func (t *TrackerFil) AllProviderPingStats() (map[address.Address]*ProviderPingSt
 	return out, nil
 }
 
-type ProviderRetrievalStats struct {
+type RetrievalStats struct {
 	Success int64
 	Fail    int64
 
@@ -198,14 +198,14 @@ type ProviderRetrievalStats struct {
 	Bytes string
 }
 
-func (t *TrackerFil) AllProviderRetrievalStats() (map[address.Address]*ProviderRetrievalStats, error) {
+func (t *TrackerFil) AllProviderRetrievalStats() (map[address.Address]*RetrievalStats, error) {
 	rows, err := t.db.Query("select provider, success, fail, bytes from (select provider, count(*) as success, sum(bytes) as bytes from retrieval_stats where success = 0 group by provider) full outer join (select provider, count(*) as fail from retrieval_stats where success > 0 group by provider) using (provider)")
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	out := make(map[address.Address]*ProviderRetrievalStats)
+	out := make(map[address.Address]*RetrievalStats)
 	for rows.Next() {
 		var p string
 		var s, f *int64
@@ -230,7 +230,7 @@ func (t *TrackerFil) AllProviderRetrievalStats() (map[address.Address]*ProviderR
 			return nil, err
 		}
 
-		out[addr] = &ProviderRetrievalStats{
+		out[addr] = &RetrievalStats{
 			Success: *s,
 			Fail:    *f,
 
