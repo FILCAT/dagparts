@@ -23,7 +23,7 @@
     <h3>Storage Provider {{.maddr}}</h3>
     <div>
         <span><a href="/">explore</a> / </span>
-        <span><a href="/providers">storage providers</a> / </span>
+        <span><a href="/providers">providers</a> / </span>
         <span><a href="/provider/{{.maddr}}">{{.maddr}}</a></span>
     </div>
 
@@ -36,6 +36,7 @@
         <tr><td><b>Multiaddr</b></td><td>{{.}}</td></tr>
         {{end}}
         <tr><td><b>Ping</b></td><td><span id="ping{{.maddr}}" onload="pingMiner()">pinging..</span></td></tr>
+        <tr><td><b>Stats</b></td><td><a href="/provider/{{.Addr}}/stats">[VIEW STATS]</a></td></tr>
     </table>
 
     <hr>

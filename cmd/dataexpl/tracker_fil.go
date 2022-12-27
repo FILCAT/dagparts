@@ -248,6 +248,108 @@ func (t *TrackerFil) AllProviderRetrievalStats() (map[address.Address]*Retrieval
 	return out, nil
 }
 
+type RetrLog struct {
+	At      time.Time
+	Success int
+	Msg     string
+}
+
+type PingLog struct {
+	At      time.Time
+	Success bool
+	Msg     string
+}
+
+type ProviderDetails struct {
+	RetrSuccess, RetrFail int64
+	PingSuccess, PingFail int64
+
+	RecentRetrievals []RetrLog
+	RecentPings      []PingLog
+}
+
+func (t *TrackerFil) ProviderDetails(p address.Address) (*ProviderDetails, error) {
+	var retrSuccess, retrFail, pingSuccess, pingFail int64
+	err := t.db.QueryRow("select count(*) from retrieval_stats where provider = ? and success = 0", p.String()).Scan(&retrSuccess)
+	if err != nil {
+		return nil, err
+	}
+	err = t.db.QueryRow("select count(*) from retrieval_stats where provider = ? and success > 0", p.String()).Scan(&retrFail)
+	if err != nil {
+		return nil, err
+	}
+	err = t.db.QueryRow("select count(*) from provider_pings where provider = ? and success = 1", p.String()).Scan(&pingSuccess)
+	if err != nil {
+		return nil, err
+	}
+	err = t.db.QueryRow("select count(*) from provider_pings where provider = ? and success = 0", p.String()).Scan(&pingFail)
+	if err != nil {
+		return nil, err
+	}
+
+	retrRows, err := t.db.Query("select ts, success, msg from retrieval_stats where provider = ? order by ts desc limit 40", p.String())
+	if err != nil {
+		return nil, err
+	}
+	defer retrRows.Close()
+
+	var retrLogs []RetrLog
+	for retrRows.Next() {
+		var ts int64
+		var success int
+		var msg string
+		err := retrRows.Scan(&ts, &success, &msg)
+		if err != nil {
+			return nil, err
+		}
+
+		retrLogs = append(retrLogs, RetrLog{
+			At:      time.Unix(ts, 0),
+			Success: success,
+			Msg:     msg,
+		})
+	}
+	if err := retrRows.Err(); err != nil {
+		return nil, err
+	}
+
+	pingRows, err := t.db.Query("select ts, success, msg from provider_pings where provider = ? order by ts desc limit 20", p.String())
+	if err != nil {
+		return nil, err
+	}
+	defer pingRows.Close()
+
+	var pingLogs []PingLog
+	for pingRows.Next() {
+		var ts int64
+		var success bool
+		var msg string
+		err := pingRows.Scan(&ts, &success, &msg)
+		if err != nil {
+			return nil, err
+		}
+
+		pingLogs = append(pingLogs, PingLog{
+			At:      time.Unix(ts, 0),
+			Success: success,
+			Msg:     msg,
+		})
+	}
+	if err := pingRows.Err(); err != nil {
+		return nil, err
+	}
+
+	return &ProviderDetails{
+		RetrSuccess: retrSuccess,
+		RetrFail:    retrFail,
+		PingSuccess: pingSuccess,
+		PingFail:    pingFail,
+
+		RecentRetrievals: retrLogs,
+		RecentPings:      pingLogs,
+	}, nil
+}
+
 func errToMsg(err error) string {
 	if err == nil {
 		return ""

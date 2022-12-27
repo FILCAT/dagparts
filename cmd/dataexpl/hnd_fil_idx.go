@@ -35,7 +35,7 @@ import (
 	"github.com/filecoin-project/lotus/chain/types"
 )
 
-func (h *dxhnd) handleMiners(w http.ResponseWriter, r *http.Request) {
+func (h *dxhnd) handleProviders(w http.ResponseWriter, r *http.Request) {
 	pstat, err := h.trackerFil.AllProviderPingStats()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -116,6 +116,40 @@ func derefOr[T any](v *T, def T) T {
 		return def
 	}
 	return *v
+}
+
+func (h *dxhnd) handleProviderStats(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	ma, err := address.NewFromString(vars["id"])
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	pstat, err := h.trackerFil.ProviderDetails(ma)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	tpl, err := template.New("provstats.gohtml").Funcs(map[string]any{
+		"sizeClass": sizeClass,
+	}).ParseFS(dres, "dexpl/provstats.gohtml")
+	if err != nil {
+		fmt.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	data := map[string]interface{}{
+		"Addr": ma,
+		"Stat": pstat,
+	}
+	if err := tpl.Execute(w, data); err != nil {
+		fmt.Println(err)
+		return
+	}
 }
 
 func (h *dxhnd) handleDeals(w http.ResponseWriter, r *http.Request) {

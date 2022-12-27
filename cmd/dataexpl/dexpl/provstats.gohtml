@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Provider {{.Addr}} stats - Data Explorer</title>
+    <link rel="stylesheet" href="/static/root.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Yantramanav">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Press+Start+2P">
+</head>
+<body>
+<!--header-->
+<div style="height: 2em; display: flex">
+    <div style="color: #cccccc; transform:scaleY(0.50); transform-origin: 0 0; font-size: 4em; font-weight: bold; height: 2em; font-family: 'Press Start 2P', serif;">
+        DAG
+    </div>
+    <div style="transform:scaleY(0.50); transform-origin: 0 0; font-size: 4em; font-weight: bold; height: 2em; font-family: 'Press Start 2P', serif;">
+        PARTS
+    </div>
+</div>
+<hr>
+<h3>Provider {{.Addr}} Stats</h3>
+<div>
+    <span><a href="/">explore</a> / </span>
+    <span><a href="/providers">providers</a> / </span>
+    <span><a href="/provider/{{.Addr}}">{{.Addr}}</a> / stats</span>
+</div>
+<hr>
+<!--/header-->
+
+<h3>Retrieval</h3>
+<span class="warn">Showing 40 most recent entries</span>
+<div>
+    <span class="success">{{.Stat.RetrSuccess}} Successful retrievals</span>, <span class="err">{{.Stat.RetrFail}} Failed retrievals</span>
+</div>
+<div>
+    <table>
+        <tr><td>Time</td><td>Result</td><td>Message</td></tr>
+        {{range .Stat.RecentRetrievals}}
+            <tr>
+                <td>{{.At}}</td>
+                <td>{{if eq .Success 0}}<span class="success">success</span>{{else}}<span class="err">fail</span>({{.Success}}){{end}}</td>
+                <td>{{.Msg}}</td>
+            </tr>
+        {{end}}
+    </table>
+</div>
+
+<h3>Connectivity</h3>
+<span class="warn">Showing 20 most recent entries</span>
+<div>
+    <span class="success">{{.Stat.PingSuccess}} Successful pings</span>, <span class="err">{{.Stat.PingFail}} Failed pings</span>
+</div>
+<div>
+    <table>
+        <tr><td>Time</td><td>Result</td><td>Message</td></tr>
+        {{range .Stat.RecentPings}}
+        <tr>
+            <td>{{.At}}</td>
+            <td>{{if .Success}}<span class="success">success</span>{{else}}<span class="err">fail</span>{{end}}</td>
+            <td>{{.Msg}}</td>
+        </tr>
+        {{end}}
+    </table>
+</div>
+
+</body>
+</html>

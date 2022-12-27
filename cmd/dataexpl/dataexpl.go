@@ -351,7 +351,7 @@ var dataexplCmd = &cli.Command{
 		m.HandleFunc("/", dh.handleIndex).Methods("GET")
 		m.HandleFunc("/chain/filecoin/mainnet", dh.handleChain).Methods("GET")
 		m.HandleFunc("/chain/filecoin/mainnet/actor", dh.handleChainActor).Methods("GET")
-		m.HandleFunc("/providers", dh.handleMiners).Methods("GET")
+		m.HandleFunc("/providers", dh.handleProviders).Methods("GET")
 		m.HandleFunc("/ping/miner/{id}", dh.handlePingMiner).Methods("GET")
 		m.HandleFunc("/ping/peer/ipfs/{id}", dh.handlePingIPFS).Methods("GET")
 		m.HandleFunc("/ping/peer/lotus/{id}", dh.handlePingLotus).Methods("GET")
@@ -361,6 +361,7 @@ var dataexplCmd = &cli.Command{
 		m.HandleFunc("/clients", dh.handleClients).Methods("GET")
 		m.HandleFunc("/client/{id}", dh.handleClient).Methods("GET")
 		m.HandleFunc("/provider/{id}", dh.handleProviderSectors).Methods("GET")
+		m.HandleFunc("/provider/{id}/stats", dh.handleProviderStats).Methods("GET")
 
 		m.HandleFunc("/deal/{id}", dh.handleDeal).Methods("GET")
 		m.HandleFunc("/view/ipfs/{cid}/{path:.*}", dh.handleViewIPFS).Methods("GET", "HEAD")
