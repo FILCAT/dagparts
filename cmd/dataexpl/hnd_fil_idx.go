@@ -40,6 +40,11 @@ func (h *dxhnd) handleMiners(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	rstat, err := h.trackerFil.AllProviderRetrievalStats()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	tpl, err := template.New("providers.gohtml").Funcs(map[string]any{
 		"sizeClass": sizeClass,
@@ -52,8 +57,9 @@ func (h *dxhnd) handleMiners(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)
 	data := map[string]interface{}{
-		"miners": h.mminers,
-		"ping":   pstat,
+		"miners":    h.mminers,
+		"ping":      pstat,
+		"retrieval": rstat,
 	}
 	if err := tpl.Execute(w, data); err != nil {
 		fmt.Println(err)

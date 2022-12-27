@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/filecoin-project/go-address"
-	"github.com/filecoin-project/go-state-types/abi"
+	"github.com/filecoin-project/lotus/chain/types"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -52,8 +52,8 @@ create table if not exists retrieval_stats
 
     blocks   integer,
     bytes    integer,
-
-	dealid integer
+    
+    piece text
 );
 
 create unique index if not exists retrieval_stats_id_uindex
@@ -97,10 +97,12 @@ func (t *TrackerFil) RecordPing(p address.Address, took time.Duration, err error
 	}
 }
 
-func (t *TrackerFil) RecordRetrieval(p address.Address, err error, blocks, bytes int64, dealid abi.DealID) error {
-	_, qerr := t.db.Exec("insert into retrieval_stats (provider, success, msg, blocks, bytes, dealid) values (?, ?, ?, ?, ?, ?)",
-		p.String(), err == nil, errToMsg(err), blocks, bytes, dealid)
-	return qerr
+func (t *TrackerFil) RecordRetrieval(p address.Address, err error, successCode int, bytes int64, piece string) {
+	_, qerr := t.db.Exec("insert into retrieval_stats (provider, success, msg, bytes, piece) values (?, ?, ?, ?, ?)",
+		p.String(), successCode, errToMsg(err), bytes, piece)
+	if qerr != nil {
+		log.Warnf("failed to record retrieval: %s", qerr)
+	}
 }
 
 const slowPingThreshold = 2 * time.Second
@@ -136,7 +138,7 @@ type ProviderPingStats struct {
 }
 
 func (t *TrackerFil) AllProviderPingStats() (map[address.Address]*ProviderPingStats, error) {
-	rows, err := t.db.Query("select provider, success, fail, slow from (select provider, count(*) as success from provider_pings where success = 1 group by provider) left join (select provider, count(*) as fail from provider_pings where success = 0 group by provider) using (provider) left join (select provider, count(*) as slow from provider_pings where success = 1 and took_us > ? group by provider) using (provider)", slowPingThreshold.Microseconds())
+	rows, err := t.db.Query("select provider, success, fail, slow from (select provider, count(*) as success from provider_pings where success = 1 group by provider) full outer join (select provider, count(*) as fail from provider_pings where success = 0 group by provider) using (provider) full outer join (select provider, count(*) as slow from provider_pings where success = 1 and took_us > ? group by provider) using (provider)", slowPingThreshold.Microseconds())
 	if err != nil {
 		return nil, err
 	}
@@ -176,6 +178,67 @@ func (t *TrackerFil) AllProviderPingStats() (map[address.Address]*ProviderPingSt
 
 			SuccessPct: fmt.Sprintf("%.2f%%", float64(*s)/float64(*s+*f)*100),
 			SlowPct:    fmt.Sprintf("%.2f%%", float64(*sl)/float64(*s)*100),
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return out, nil
+}
+
+type ProviderRetrievalStats struct {
+	Success int64
+	Fail    int64
+
+	IsHealthy bool
+
+	SuccessPct string
+
+	Bytes string
+}
+
+func (t *TrackerFil) AllProviderRetrievalStats() (map[address.Address]*ProviderRetrievalStats, error) {
+	rows, err := t.db.Query("select provider, success, fail, bytes from (select provider, count(*) as success, sum(bytes) as bytes from retrieval_stats where success = 0 group by provider) full outer join (select provider, count(*) as fail from retrieval_stats where success > 0 group by provider) using (provider)")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := make(map[address.Address]*ProviderRetrievalStats)
+	for rows.Next() {
+		var p string
+		var s, f *int64
+		var b *int64
+		err := rows.Scan(&p, &s, &f, &b)
+		if err != nil {
+			return nil, err
+		}
+
+		if s == nil {
+			s = new(int64)
+		}
+		if f == nil {
+			f = new(int64)
+		}
+		if b == nil {
+			b = new(int64)
+		}
+
+		addr, err := address.NewFromString(p)
+		if err != nil {
+			return nil, err
+		}
+
+		out[addr] = &ProviderRetrievalStats{
+			Success: *s,
+			Fail:    *f,
+
+			IsHealthy: *s > *f,
+
+			SuccessPct: fmt.Sprintf("%.2f%%", float64(*s)/float64(*s+*f)*100),
+
+			Bytes: types.SizeStr(types.NewInt(uint64(*b))),
 		}
 	}
 	if err := rows.Err(); err != nil {

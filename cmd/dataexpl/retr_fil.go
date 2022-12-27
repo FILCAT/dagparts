@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -156,6 +157,19 @@ topLoop:
 	}
 }
 
+const (
+	RetrResSuccess = iota
+	RetrResQueryOfferErr
+	RetrResOfferError
+
+	RetrResPriceTooHigh
+	RetrResRetrievalSetupErr
+
+	RetrResRetrievalRejected
+	RetrResRetrievalErr
+	RetrResRetrievalTimeout
+)
+
 func (h *dxhnd) retrieveFil(ctx context.Context, apiStore *lapi.RemoteStoreID, minerAddr address.Address, pieceCid, file cid.Cid, sel *lapi.Selector, retrDone func()) (*lapi.ExportRef, func(), error) {
 	payer, err := h.api.WalletDefaultAddress(ctx)
 	if err != nil {
@@ -166,11 +180,12 @@ func (h *dxhnd) retrieveFil(ctx context.Context, apiStore *lapi.RemoteStoreID, m
 	{ // Directed retrieval
 		offer, err = h.api.ClientMinerQueryOffer(ctx, minerAddr, file, &pieceCid)
 		if err != nil {
+			h.trackerFil.RecordRetrieval(minerAddr, fmt.Errorf("queryoffer error: %s", err), RetrResQueryOfferErr, 0, pieceCid.String())
 			return nil, nil, xerrors.Errorf("offer: %w", err)
 		}
 	}
 	if offer.Err != "" {
-		// todo record too
+		h.trackerFil.RecordRetrieval(minerAddr, fmt.Errorf("offer error: %s", offer.Err), RetrResOfferError, 0, pieceCid.String())
 		return nil, nil, fmt.Errorf("offer error: %s", offer.Err)
 	}
 
@@ -178,7 +193,9 @@ func (h *dxhnd) retrieveFil(ctx context.Context, apiStore *lapi.RemoteStoreID, m
 	//maxPrice := big.NewInt(6818260582400)
 
 	if offer.MinPrice.GreaterThan(maxPrice) {
-		return nil, nil, xerrors.Errorf("failed to find offer satisfying maxPrice: %s (min %s, %s)", maxPrice, offer.MinPrice, types.FIL(offer.MinPrice))
+		err := xerrors.Errorf("failed to find offer satisfying maxPrice: %s (min %s, %s)", maxPrice, offer.MinPrice, types.FIL(offer.MinPrice))
+		h.trackerFil.RecordRetrieval(minerAddr, err, RetrResPriceTooHigh, 0, pieceCid.String())
+		return nil, nil, err
 	}
 
 	o := offer.Order(payer)
@@ -191,6 +208,7 @@ func (h *dxhnd) retrieveFil(ctx context.Context, apiStore *lapi.RemoteStoreID, m
 	retrievalRes, err := h.api.ClientRetrieve(ctx, o)
 	if err != nil {
 		cancel()
+		h.trackerFil.RecordRetrieval(minerAddr, fmt.Errorf("retrieval setup error: %s", err), RetrResRetrievalSetupErr, 0, pieceCid.String())
 		return nil, nil, xerrors.Errorf("error setting up retrieval: %w", err)
 	}
 
@@ -202,6 +220,10 @@ func (h *dxhnd) retrieveFil(ctx context.Context, apiStore *lapi.RemoteStoreID, m
 	start := time.Now()
 	resCh := make(chan error, 1)
 	var resSent bool
+
+	var retrCode = RetrResSuccess
+
+	var data int64
 
 	go func() {
 		defer func() {
@@ -225,6 +247,7 @@ func (h *dxhnd) retrieveFil(ctx context.Context, apiStore *lapi.RemoteStoreID, m
 					}()
 				}
 
+				retrCode = RetrResRetrievalTimeout
 				resCh <- xerrors.New("Retrieval Timed Out")
 
 				log.Infow("retrieval done", "reason", "timed out", "duration", time.Since(start))
@@ -243,6 +266,8 @@ func (h *dxhnd) retrieveFil(ctx context.Context, apiStore *lapi.RemoteStoreID, m
 			if evt.Event != nil {
 				event = retrievalmarket.ClientEvents[*evt.Event]
 			}
+
+			atomic.StoreInt64(&data, int64(evt.BytesReceived))
 
 			fmt.Printf("Recv %s, Paid %s, %s (%s), %s\n",
 				types.SizeStr(types.NewInt(evt.BytesReceived)),
@@ -266,6 +291,7 @@ func (h *dxhnd) retrieveFil(ctx context.Context, apiStore *lapi.RemoteStoreID, m
 				return
 			case retrievalmarket.DealStatusRejected:
 				if !resSent {
+					retrCode = RetrResRetrievalRejected
 					resCh <- xerrors.Errorf("Retrieval Proposal Rejected: %s", evt.Message)
 				}
 				log.Infow("retrieval done", "reason", "rejected", "duration", time.Since(start))
@@ -274,6 +300,7 @@ func (h *dxhnd) retrieveFil(ctx context.Context, apiStore *lapi.RemoteStoreID, m
 				retrievalmarket.DealStatusDealNotFound,
 				retrievalmarket.DealStatusErrored:
 				if !resSent {
+					retrCode = RetrResRetrievalErr
 					resCh <- xerrors.Errorf("Retrieval Error: %s", evt.Message)
 				}
 				log.Infow("retrieval done", "reason", "errored/not found", "duration", time.Since(start))
@@ -284,6 +311,7 @@ func (h *dxhnd) retrieveFil(ctx context.Context, apiStore *lapi.RemoteStoreID, m
 
 	err = <-resCh
 	if err != nil {
+		h.trackerFil.RecordRetrieval(minerAddr, err, retrCode, data, pieceCid.String())
 		return nil, nil, err
 	}
 
@@ -292,9 +320,11 @@ func (h *dxhnd) retrieveFil(ctx context.Context, apiStore *lapi.RemoteStoreID, m
 		DealID: retrievalRes.DealID,
 	}
 	return eref, func() {
+		h.trackerFil.RecordRetrieval(minerAddr, nil, retrCode, atomic.LoadInt64(&data), pieceCid.String())
+
 		err := h.api.ClientCancelRetrievalDeal(context.Background(), retrievalRes.DealID)
 		if err != nil {
-			log.Errorw("cancelling deal failed", "error", err)
+			log.Debugw("cancelling deal failed", "error", err)
 		}
 	}, nil
 }

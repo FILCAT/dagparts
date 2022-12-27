@@ -27,8 +27,9 @@
 <i class="warn">warning: providers above 1PiB will be slow to open due to current lack of pagination</i>
 
 <table>
-    <tr><td><b>Provider</b></td><td>Owner</td><td>Market</td><td>Power</td><td>Ping Success Rate</td></tr>
+    <tr><td><b>Provider</b></td><td>Owner</td><td>Market</td><td>Power</td><td>Ping Success Rate</td><td>Retrieval Success Rate</td></tr>
     {{$ping := .ping}}
+    {{$retrieval := .retrieval}}
     {{range .miners}}
         <tr>
             <td>
@@ -50,7 +51,17 @@
                 {{else}}
                     <span class="warn">0%</span> 0/0
                 {{end}}
-
+            </td>
+            <td>
+                {{$rstat := (index $retrieval .Addr)}}
+                {{if ne nil $rstat}}
+                    <span class="{{if $rstat.IsHealthy}}success{{else}}err{{end}}">{{$rstat.SuccessPct}}</span>
+                    <span {{if gt $rstat.Success 0}}class="success"{{end}}>{{$rstat.Success}}</span>/<span {{if gt $rstat.Fail 0}}class="err"{{end}}>{{$rstat.Fail}}</span>
+                    <span class="size-{{$rstat.Bytes | sizeClass}}">{{$rstat.Bytes}}</span>
+                {{else}}
+                    <span class="warn">0%</span> 0/0
+                    <span>0B</span>
+                {{end}}
             </td>
         </tr>
     {{end}}
