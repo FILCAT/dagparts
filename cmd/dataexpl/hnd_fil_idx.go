@@ -7,6 +7,7 @@ import (
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/builtin"
 	"github.com/filecoin-project/index-provider/metadata"
+	"github.com/filecoin-project/lotus/api"
 	cliutil "github.com/filecoin-project/lotus/cli/util"
 	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -259,10 +260,17 @@ func (h *dxhnd) handleProviderSectors(w http.ResponseWriter, r *http.Request) {
 		go func(deal abi.DealID) {
 			defer wg.Done()
 
-			md, err := h.api.StateMarketStorageDeal(ctx, deal, types.EmptyTSK)
-			if err != nil {
-				return
+			cv, found := h.marketDealCache.Get(deal)
+			if !found {
+				md, err := h.api.StateMarketStorageDeal(ctx, deal, types.EmptyTSK)
+				if err != nil {
+					return
+				}
+				cv = md
+				h.marketDealCache.Add(deal, cv)
 			}
+
+			md := cv.(*api.MarketDeal)
 
 			if md.Proposal.Provider == address.Undef {
 				return

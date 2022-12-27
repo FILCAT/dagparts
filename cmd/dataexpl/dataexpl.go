@@ -9,6 +9,7 @@ import (
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/lotus/node/repo"
 	"github.com/filecoin-project/pubsub"
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/ipfs/go-merkledag"
@@ -63,6 +64,8 @@ type dxhnd struct {
 	api    lapi.FullNode
 	ainfo  cliutil.APIInfo
 	apiBss *apiBstoreServer
+
+	marketDealCache *lru.Cache
 
 	clientMeta string
 
@@ -312,10 +315,14 @@ var dataexplCmd = &cli.Command{
 			stores:     map[uuid.UUID]bstore.Blockstore{},
 		}
 
+		dc, _ := lru.New(10_000_000)
+
 		dh := &dxhnd{
 			api:   api,
 			ainfo: ainfo,
 			idx:   idx,
+
+			marketDealCache: dc,
 
 			clientMeta: cctx.String("client-meta"),
 
