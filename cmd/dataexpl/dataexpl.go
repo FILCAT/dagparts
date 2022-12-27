@@ -71,7 +71,7 @@ type dxhnd struct {
 	minerPids map[peer.ID]address.Address
 
 	tempBsBld *ctbstore.TempBsb
-	filRetrPs pubsub.PubSub
+	filRetrPs *pubsub.PubSub
 
 	trackerFil *TrackerFil
 }
@@ -321,9 +321,12 @@ var dataexplCmd = &cli.Command{
 
 			apiBss:    apiBss,
 			tempBsBld: ctbstore.NewTempBsBuilder(cctx.String("blk-cache")),
+			filRetrPs: pubsub.New(32),
 
 			trackerFil: tracker,
 		}
+
+		go dh.listenRetrievalUpdates(ctx)
 
 		m := mux.NewRouter()
 

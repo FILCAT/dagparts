@@ -126,6 +126,36 @@ func (h *dxhnd) getFilRetrieval(bsb *ctbstore.TempBsb, r *http.Request, ma addre
 	}
 }
 
+func (h *dxhnd) listenRetrievalUpdates(ctx context.Context) {
+topLoop:
+	for {
+		if ctx.Err() != nil {
+			log.Warnw("stopping retrieval updates", "ctx", ctx.Err())
+			return
+		}
+
+		subscribeEvents, err := h.api.ClientGetRetrievalUpdates(ctx)
+		if err != nil {
+			log.Warnw("retrieval updates", "error", err)
+			time.Sleep(time.Second)
+			continue
+		}
+
+		for {
+			select {
+			case <-ctx.Done():
+				continue topLoop
+			case event, ok := <-subscribeEvents:
+				if !ok {
+					continue topLoop
+				}
+
+				h.filRetrPs.Pub(event, "events")
+			}
+		}
+	}
+}
+
 func (h *dxhnd) retrieveFil(ctx context.Context, apiStore *lapi.RemoteStoreID, minerAddr address.Address, pieceCid, file cid.Cid, sel *lapi.Selector, retrDone func()) (*lapi.ExportRef, func(), error) {
 	payer, err := h.api.WalletDefaultAddress(ctx)
 	if err != nil {
@@ -156,17 +186,14 @@ func (h *dxhnd) retrieveFil(ctx context.Context, apiStore *lapi.RemoteStoreID, m
 
 	ctx, cancel := context.WithCancel(ctx)
 
-	// todo local pubsub
-	subscribeEvents, err := h.api.ClientGetRetrievalUpdates(ctx)
-	if err != nil {
-		cancel()
-		return nil, nil, xerrors.Errorf("error setting up retrieval updates: %w", err)
-	}
+	subscribeEvents := h.filRetrPs.Sub("events")
 	retrievalRes, err := h.api.ClientRetrieve(ctx, o)
 	if err != nil {
 		cancel()
 		return nil, nil, xerrors.Errorf("error setting up retrieval: %w", err)
 	}
+
+	// todo re-sub on id-topic specific channel
 
 	start := time.Now()
 	resCh := make(chan error, 1)
@@ -174,6 +201,7 @@ func (h *dxhnd) retrieveFil(ctx context.Context, apiStore *lapi.RemoteStoreID, m
 
 	go func() {
 		defer func() {
+			h.filRetrPs.Unsub(subscribeEvents, "events")
 			if retrDone != nil {
 				retrDone()
 			}
