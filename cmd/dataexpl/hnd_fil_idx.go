@@ -66,19 +66,25 @@ func (h *dxhnd) handleMiners(w http.ResponseWriter, r *http.Request) {
 	sort.SliceStable(minerlist, func(i, j int) bool {
 		si := derefOr(rstat[minerlist[i].Addr], RetrievalStats{})
 		sj := derefOr(rstat[minerlist[j].Addr], RetrievalStats{})
+		if si.Success != sj.Success {
+			return si.Success > sj.Success
+		}
 
-		if si.Success == sj.Success {
-			pi := derefOr(pstat[minerlist[i].Addr], ProviderPingStats{})
-			pj := derefOr(pstat[minerlist[j].Addr], ProviderPingStats{})
+		pi := derefOr(pstat[minerlist[i].Addr], ProviderPingStats{})
+		pj := derefOr(pstat[minerlist[j].Addr], ProviderPingStats{})
 
-			// rate is zero if no pings
-			pirate := float64(pi.Success+1) / float64(pi.Success+pi.Fail+1)
-			pjrate := float64(pj.Success+1) / float64(pj.Success+pj.Fail+1)
+		// rate is zero if no pings
+		pirate := float64(pi.Success+1) / float64(pi.Success+pi.Fail+1)
+		pjrate := float64(pj.Success+1) / float64(pj.Success+pj.Fail+1)
 
+		if pirate != pjrate {
 			return pirate > pjrate
 		}
 
-		return si.Success > sj.Success
+		idi, _ := address.IDFromAddress(minerlist[i].Addr)
+		idj, _ := address.IDFromAddress(minerlist[j].Addr)
+
+		return idi < idj
 	})
 
 	tpl, err := template.New("providers.gohtml").Funcs(map[string]any{
