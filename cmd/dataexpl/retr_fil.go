@@ -207,6 +207,12 @@ func (h *dxhnd) retrieveFil(ctx context.Context, apiStore *lapi.RemoteStoreID, m
 	subscribeEvents := h.filRetrPs.Sub("events")
 	retrievalRes, err := h.api.ClientRetrieve(ctx, o)
 	if err != nil {
+		go func() {
+			// Unsub will drain subscribeEvents, but not hard enough for our needs
+			for range subscribeEvents {
+			}
+		}()
+		h.filRetrPs.Unsub(subscribeEvents, "events")
 		cancel()
 		h.trackerFil.RecordRetrieval(minerAddr, fmt.Errorf("retrieval setup error: %s", err), RetrResRetrievalSetupErr, 0, pieceCid.String())
 		return nil, nil, xerrors.Errorf("error setting up retrieval: %w", err)

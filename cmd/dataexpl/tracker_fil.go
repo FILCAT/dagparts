@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/lotus/chain/types"
+	"sync"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -68,6 +69,8 @@ create index if not exists retrieval_stats_ts_index
 
 type TrackerFil struct {
 	db *sql.DB
+
+	dblk sync.RWMutex
 }
 
 func OpenFilTracker(root string) (*TrackerFil, error) {
@@ -85,11 +88,17 @@ func OpenFilTracker(root string) (*TrackerFil, error) {
 }
 
 func (t *TrackerFil) UpsertProvider(a address.Address) error {
+	t.dblk.Lock()
+	defer t.dblk.Unlock()
+
 	_, err := t.db.Exec("insert into providers (address) values (?) on conflict do nothing", a.String())
 	return err
 }
 
 func (t *TrackerFil) RecordPing(p address.Address, took time.Duration, err error) {
+	t.dblk.Lock()
+	defer t.dblk.Unlock()
+
 	_, qerr := t.db.Exec("insert into provider_pings (provider, ts, success, took_us, msg) values (?, ?, ?, ?, ?)",
 		p.String(), time.Now().Unix(), err == nil, took.Microseconds(), errToMsg(err))
 	if qerr != nil {
@@ -98,6 +107,9 @@ func (t *TrackerFil) RecordPing(p address.Address, took time.Duration, err error
 }
 
 func (t *TrackerFil) RecordRetrieval(p address.Address, err error, successCode int, bytes int64, piece string) {
+	t.dblk.Lock()
+	defer t.dblk.Unlock()
+
 	_, qerr := t.db.Exec("insert into retrieval_stats (provider, success, msg, bytes, piece) values (?, ?, ?, ?, ?)",
 		p.String(), successCode, errToMsg(err), bytes, piece)
 	if qerr != nil {
@@ -109,6 +121,9 @@ const slowPingThreshold = 2 * time.Second
 
 // gets stats for the last 24 hours
 func (t *TrackerFil) ProviderPingStats(p address.Address) (success, fail, slow int64, err error) {
+	t.dblk.RLock()
+	defer t.dblk.RUnlock()
+
 	startTime := time.Now().Add(-24 * time.Hour).Unix()
 	err = t.db.QueryRow("select count(*) from provider_pings where provider = ? and ts > ? and success = 1", p.String(), startTime).Scan(&success)
 	if err != nil {
@@ -138,6 +153,9 @@ type ProviderPingStats struct {
 }
 
 func (t *TrackerFil) AllProviderPingStats() (map[address.Address]*ProviderPingStats, error) {
+	t.dblk.RLock()
+	defer t.dblk.RUnlock()
+
 	rows, err := t.db.Query("select provider, success, fail, slow from (select provider, count(*) as success from provider_pings where success = 1 group by provider) full outer join (select provider, count(*) as fail from provider_pings where success = 0 group by provider) using (provider) full outer join (select provider, count(*) as slow from provider_pings where success = 1 and took_us > ? group by provider) using (provider)", slowPingThreshold.Microseconds())
 	if err != nil {
 		return nil, err
@@ -199,6 +217,9 @@ type RetrievalStats struct {
 }
 
 func (t *TrackerFil) AllProviderRetrievalStats() (map[address.Address]*RetrievalStats, error) {
+	t.dblk.RLock()
+	defer t.dblk.RUnlock()
+
 	rows, err := t.db.Query("select provider, success, fail, bytes from (select provider, count(*) as success, sum(bytes) as bytes from retrieval_stats where success = 0 group by provider) full outer join (select provider, count(*) as fail from retrieval_stats where success > 0 group by provider) using (provider)")
 	if err != nil {
 		return nil, err
@@ -269,6 +290,9 @@ type ProviderDetails struct {
 }
 
 func (t *TrackerFil) ProviderDetails(p address.Address) (*ProviderDetails, error) {
+	t.dblk.RLock()
+	defer t.dblk.RUnlock()
+
 	var retrSuccess, retrFail, pingSuccess, pingFail int64
 	err := t.db.QueryRow("select count(*) from retrieval_stats where provider = ? and success = 0", p.String()).Scan(&retrSuccess)
 	if err != nil {
