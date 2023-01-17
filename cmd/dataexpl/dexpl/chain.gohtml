@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8"/>
-    <title>Client Deals - Data Explorer</title>
+    <title>Filecoin {{.network}} - Data Explorer</title>
     <link rel="stylesheet" href="/static/root.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Yantramanav">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Press+Start+2P">
@@ -18,10 +18,10 @@
         </div>
     </div>
     <hr>
-    <h3>Filecoin chain</h3>
+    <h3>Filecoin {{.network}}</h3>
     <div>
-        <span><a href="/">explore</a> / chain / filecoin / <a href="/chain/filecoin/mainnet">mainnet</a> /
-            @<a href="/chain/filecoin/mainnet?epoch={{.ts.Height}}">{{.ts.Height}}</a></span>
+        <span><a href="/">explore</a> / chain / <a href="/chain/filecoin">filecoin</a> / <a href="/chain/filecoin/{{.network}}">{{.network}}</a> /
+            @<a href="/chain/filecoin/{{.network}}?epoch={{.ts.Height}}">{{.ts.Height}}</a></span>
     </div>
     <hr>
     <!--/header-->
@@ -53,13 +53,13 @@
         JUMP TO
     </div>
     <div>
-        <form method="get" action="/chain/filecoin/mainnet">
+        <form method="get" action="/chain/filecoin/{{.network}}">
             <input name="epoch" type="text" placeholder="EPOCH">
             <input type="submit" value="go">
         </form>
     </div>
     <div>
-        <form method="get" action="/chain/filecoin/mainnet/actor">
+        <form method="get" action="/chain/filecoin/{{.network}}/actor">
             <input name="addr" type="text" placeholder="ADDRESS">
             <input type="submit" value="go">
             <input type="hidden" name="epoch" value="{{.ts.Height}}">

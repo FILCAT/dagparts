@@ -89,12 +89,7 @@ func (h *dxhnd) getIpfs(ctx context.Context, dcid cid.Cid, path string) func(ss 
 			return cid.Cid{}, nil, nil, nil, err
 		}
 
-		abs := bstore.NewAPIBlockstore(h.api)
-
-		pgbs := &ctbstore.PargetBs{Backing: []bstore.Blockstore{
-			lbs,
-			abs,
-		}}
+		pgbs := &ctbstore.PargetBs{Backing: append([]bstore.Blockstore{lbs}, h.chainStores...)}
 
 		bs := bstore.NewTieredBstore(bstore.Adapt(pgbs), bstore.NewMemory())
 		ds := merkledag.NewDAGService(blockservice.New(bs, offline.Exchange(bs)))

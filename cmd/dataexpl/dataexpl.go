@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/filecoin-project/cidtravel/ctbstore"
 	"github.com/filecoin-project/go-address"
+	"github.com/filecoin-project/lotus/api/client"
 	"github.com/filecoin-project/lotus/node/repo"
 	"github.com/filecoin-project/pubsub"
 	lru "github.com/hashicorp/golang-lru"
@@ -64,6 +65,8 @@ type dxhnd struct {
 	api    lapi.FullNode
 	ainfo  cliutil.APIInfo
 	apiBss *apiBstoreServer
+
+	chainStores []bstore.Blockstore
 
 	marketDealCache *lru.Cache
 
@@ -227,6 +230,24 @@ var dataexplCmd = &cli.Command{
 
 		ctx := cliutil.ReqContext(cctx)
 
+		gwHs, closerHs, err := client.NewGatewayRPCV1(ctx, "https://filecoin-hyperspace.chainstacklabs.com/rpc/v1", nil)
+		if err != nil {
+			return err
+		}
+		defer closerHs()
+
+		gwCl, closerCl, err := client.NewGatewayRPCV1(ctx, "https://api.calibration.node.glif.io/rpc/v1", nil)
+		if err != nil {
+			return err
+		}
+		defer closerCl()
+
+		networks := map[string]lapi.Gateway{
+			"mainnet":     api,
+			"hyperspace":  gwHs,
+			"calibration": gwCl,
+		}
+
 		idx, err := finderhttpclient.New("https://cid.contact")
 		if err != nil {
 			return err
@@ -349,8 +370,16 @@ var dataexplCmd = &cli.Command{
 		m.PathPrefix("/static/").Handler(http.FileServer(http.FS(static))).Methods("GET", "HEAD")
 
 		m.HandleFunc("/", dh.handleIndex).Methods("GET")
-		m.HandleFunc("/chain/filecoin/mainnet", dh.handleChain).Methods("GET")
-		m.HandleFunc("/chain/filecoin/mainnet/actor", dh.handleChainActor).Methods("GET")
+
+		m.HandleFunc("/chain/filecoin", dh.handleChains(networks)).Methods("GET")
+
+		for net, gateway := range networks {
+			dh.chainStores = append(dh.chainStores, bstore.NewAPIBlockstore(gateway))
+
+			m.HandleFunc("/chain/filecoin/"+net, dh.handleChain(gateway, net)).Methods("GET")
+			m.HandleFunc("/chain/filecoin/"+net+"/actor", dh.handleChainActor(gateway)).Methods("GET")
+		}
+
 		m.HandleFunc("/providers", dh.handleProviders).Methods("GET")
 		m.HandleFunc("/ping/miner/{id}", dh.handlePingMiner).Methods("GET")
 		m.HandleFunc("/ping/peer/ipfs/{id}", dh.handlePingIPFS).Methods("GET")
