@@ -32,11 +32,8 @@ create table if not exists provider_pings
         primary key (provider, ts)
 );
 
-create index if not exists provider_pings_provider_index
-    on provider_pings (provider);
-
-create index if not exists provider_pings_ts_index
-    on provider_pings (ts desc);
+create unique index if not exists provider_pings_ts_provider_index
+    on provider_pings (ts, provider);
 
 create table if not exists retrieval_stats
 (
@@ -152,33 +149,28 @@ type ProviderPingStats struct {
 	SuccessPct, SlowPct string
 }
 
-func (t *TrackerFil) AllProviderPingStats() (map[address.Address]*ProviderPingStats, error) {
+func (t *TrackerFil) AllProviderPingStats(d time.Duration) (map[address.Address]*ProviderPingStats, error) {
 	t.dblk.RLock()
 	defer t.dblk.RUnlock()
 
-	rows, err := t.db.Query("select provider, success, fail, slow from (select provider, count(*) as success from provider_pings where success = 1 group by provider) full outer join (select provider, count(*) as fail from provider_pings where success = 0 group by provider) using (provider) full outer join (select provider, count(*) as slow from provider_pings where success = 1 and took_us > ? group by provider) using (provider)", slowPingThreshold.Microseconds())
+	startTime := time.Now()
+
+	minTs := time.Now().Add(-d).Unix()
+
+	out := make(map[address.Address]*ProviderPingStats)
+	// in 3 separate queries for performance reasons
+
+	rows, err := t.db.Query("select provider, count(*) as success from provider_pings where ts > ? and success = 1 group by provider", minTs)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	out := make(map[address.Address]*ProviderPingStats)
 	for rows.Next() {
 		var p string
-		var s, f, sl *int64
-		err := rows.Scan(&p, &s, &f, &sl)
+		var s int64
+		err := rows.Scan(&p, &s)
 		if err != nil {
 			return nil, err
-		}
-
-		if s == nil {
-			s = new(int64)
-		}
-		if f == nil {
-			f = new(int64)
-		}
-		if sl == nil {
-			sl = new(int64)
 		}
 
 		addr, err := address.NewFromString(p)
@@ -187,20 +179,71 @@ func (t *TrackerFil) AllProviderPingStats() (map[address.Address]*ProviderPingSt
 		}
 
 		out[addr] = &ProviderPingStats{
-			Success: *s,
-			Fail:    *f,
-			Slow:    *sl,
-
-			IsHealthy: *s > *f,
-			IsSlow:    *sl > *s/3,
-
-			SuccessPct: fmt.Sprintf("%.2f%%", float64(*s)/float64(*s+*f)*100),
-			SlowPct:    fmt.Sprintf("%.2f%%", float64(*sl)/float64(*s)*100),
+			Success: s,
 		}
 	}
-	if err := rows.Err(); err != nil {
+
+	rows, err = t.db.Query("select provider, count(*) as fail from provider_pings where ts > ? and success = 0 group by provider", minTs)
+	if err != nil {
 		return nil, err
 	}
+
+	for rows.Next() {
+		var p string
+		var f int64
+		err := rows.Scan(&p, &f)
+		if err != nil {
+			return nil, err
+		}
+
+		addr, err := address.NewFromString(p)
+		if err != nil {
+			return nil, err
+		}
+
+		if out[addr] == nil {
+			out[addr] = &ProviderPingStats{}
+		}
+
+		out[addr].Fail = f
+	}
+
+	rows, err = t.db.Query("select provider, count(*) as slow from provider_pings where ts > ? and success = 1 and took_us > ? group by provider", minTs, slowPingThreshold.Microseconds())
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		var p string
+		var sl int64
+		err := rows.Scan(&p, &sl)
+		if err != nil {
+			return nil, err
+		}
+
+		addr, err := address.NewFromString(p)
+		if err != nil {
+			return nil, err
+		}
+
+		if out[addr] == nil {
+			out[addr] = &ProviderPingStats{}
+		}
+
+		out[addr].Slow = sl
+	}
+
+	for addr, stats := range out {
+		stats.IsHealthy = stats.Success > stats.Fail
+		stats.IsSlow = stats.Slow > stats.Success/3
+
+		stats.SuccessPct = fmt.Sprintf("%.2f%%", float64(stats.Success)/float64(stats.Success+stats.Fail)*100)
+		stats.SlowPct = fmt.Sprintf("%.2f%%", float64(stats.Slow)/float64(stats.Success)*100)
+
+		out[addr] = stats
+	}
+
+	log.Infof("pings query took %s", time.Since(startTime))
 
 	return out, nil
 }
@@ -219,6 +262,8 @@ type RetrievalStats struct {
 func (t *TrackerFil) AllProviderRetrievalStats() (map[address.Address]*RetrievalStats, error) {
 	t.dblk.RLock()
 	defer t.dblk.RUnlock()
+
+	startTime := time.Now()
 
 	rows, err := t.db.Query("select provider, success, fail, bytes from (select provider, count(*) as success, sum(bytes) as bytes from retrieval_stats where success = 0 group by provider) full outer join (select provider, count(*) as fail from retrieval_stats where success > 0 group by provider) using (provider)")
 	if err != nil {
@@ -265,6 +310,8 @@ func (t *TrackerFil) AllProviderRetrievalStats() (map[address.Address]*Retrieval
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
+
+	log.Infof("retrievals query took %s", time.Since(startTime))
 
 	return out, nil
 }

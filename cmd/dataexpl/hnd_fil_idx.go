@@ -21,6 +21,7 @@ import (
 	"sort"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/ipld/go-ipld-prime/node/basicnode"
@@ -36,7 +37,7 @@ import (
 )
 
 func (h *dxhnd) handleProviders(w http.ResponseWriter, r *http.Request) {
-	pstat, err := h.trackerFil.AllProviderPingStats()
+	pstat, err := h.trackerFil.AllProviderPingStats(time.Hour * 2)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
