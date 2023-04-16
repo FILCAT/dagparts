@@ -12,6 +12,10 @@ type CtxWrap struct {
 	wrapFunc func(ctx context.Context) context.Context
 }
 
+func (c *CtxWrap) Flush(ctx context.Context) error {
+	return c.sub.Flush(c.wrapFunc(ctx))
+}
+
 func NewCtxWrap(sub blockstore.Blockstore, wf func(ctx context.Context) context.Context) *CtxWrap {
 	return &CtxWrap{sub: sub, wrapFunc: wf}
 }

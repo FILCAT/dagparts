@@ -13,6 +13,11 @@ type PargetBs struct {
 	Backing []bstore.Blockstore
 }
 
+func (p *PargetBs) Flush(ctx context.Context) error {
+	//TODO implement me
+	panic("implement me")
+}
+
 func (p *PargetBs) DeleteBlock(ctx context.Context, cid cid.Cid) error {
 	//TODO implement me
 	panic("implement me")
