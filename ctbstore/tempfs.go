@@ -88,6 +88,7 @@ func (b *WhyDoesThisNeedToExistBS) BlockWriteOpener() linking.BlockWriteOpener {
 }
 
 var _ ipldstorage.WritableStorage = (*WhyDoesThisNeedToExistBS)(nil)
+var _ ipldstorage.ReadableStorage = (*WhyDoesThisNeedToExistBS)(nil)
 
 func (b *TempBsb) MakeStore() (*TempBs, error) {
 	bsRoot, err := os.MkdirTemp(b.root, "bs")

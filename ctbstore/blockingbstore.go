@@ -36,6 +36,10 @@ func NewBlocking(sub bstore.Blockstore) *BlockReadBs {
 }
 
 func WithNoBlock(ctx context.Context) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	return context.WithValue(ctx, "bbs-noblock", true)
 }
 

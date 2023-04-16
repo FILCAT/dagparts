@@ -180,9 +180,7 @@ func (h *dxhnd) retrieveFil(ctx context.Context, apiStore blockstore.Blockstore,
 
 	linkSystem := cidlink.DefaultLinkSystem()
 	linkSystem.SetWriteStorage(uselessWrapperStore)
-	/*if read, ok := uselessWrapperStore.(ipldstorage.ReadableStorage); ok {
-		linkSystem.SetReadStorage(read)
-	}*/
+	linkSystem.SetReadStorage(uselessWrapperStore)
 	linkSystem.TrustedStorage = true
 	unixfsnode.AddUnixFSReificationToLinkSystem(&linkSystem)
 
