@@ -22,6 +22,10 @@ type BlockReadBs struct {
 	sub bstore.Blockstore
 }
 
+func (b *BlockReadBs) Flush(ctx context.Context) error {
+	return b.sub.Flush(ctx)
+}
+
 func NewBlocking(sub bstore.Blockstore) *BlockReadBs {
 	return &BlockReadBs{
 		finalized: make(chan struct{}),
@@ -32,6 +36,10 @@ func NewBlocking(sub bstore.Blockstore) *BlockReadBs {
 }
 
 func WithNoBlock(ctx context.Context) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	return context.WithValue(ctx, "bbs-noblock", true)
 }
 

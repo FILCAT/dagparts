@@ -6,15 +6,25 @@ import (
 	"fmt"
 	"github.com/filecoin-project/cidtravel/ctbstore"
 	"github.com/filecoin-project/go-address"
+	"github.com/filecoin-project/lassie/pkg/lassie"
+	"github.com/filecoin-project/lassie/pkg/net/host"
+	"github.com/filecoin-project/lassie/pkg/retriever"
+	types2 "github.com/filecoin-project/lassie/pkg/types"
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
+	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	"github.com/ipfs/go-merkledag"
+	"github.com/ipfs/go-unixfsnode"
+	cidlink "github.com/ipld/go-ipld-prime/linking/cid"
 	basicnode "github.com/ipld/go-ipld-prime/node/basic"
+	selectorparse "github.com/ipld/go-ipld-prime/traversal/selector/parse"
+	"github.com/libp2p/go-libp2p"
+	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/multiformats/go-multiaddr"
 	"io"
 	"net/http"
 	"regexp"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -24,13 +34,9 @@ import (
 	"github.com/ipld/go-ipld-prime/traversal/selector/builder"
 	"golang.org/x/xerrors"
 
-	"github.com/filecoin-project/go-fil-markets/retrievalmarket"
-	"github.com/filecoin-project/go-state-types/big"
-
 	lapi "github.com/filecoin-project/lotus/api"
 	bstore "github.com/filecoin-project/lotus/blockstore"
 	"github.com/filecoin-project/lotus/chain/types"
-	cliutil "github.com/filecoin-project/lotus/cli/util"
 )
 
 type selGetter func(ss builder.SelectorSpec) (cid.Cid, format.DAGService, map[string]struct{}, func(), error)
@@ -44,23 +50,15 @@ func (h *dxhnd) getCarFilRetrieval(r *http.Request, ma address.Address, pcid, dc
 			return nil, err
 		}
 
-		eref, done, err := h.retrieveFil(r.Context(), nil, ma, pcid, dcid, &sel, nil)
+		done, err := h.retrieveFil(r.Context(), nil, ma, pcid, dcid, &sel, nil)
 		if err != nil {
 			return nil, xerrors.Errorf("retrieve: %w", err)
 		}
 		defer done()
 
-		eref.DAGs = append(eref.DAGs, lapi.DagSpec{
-			DataSelector:      &sel,
-			ExportMerkleProof: true,
-		})
+		// todo
 
-		rc, err := cliutil.ClientExportStream(h.ainfo.Addr, h.ainfo.AuthHeader(), *eref, true)
-		if err != nil {
-			return nil, err
-		}
-
-		return rc, nil
+		return nil, nil
 	}
 }
 
@@ -82,15 +80,9 @@ func (h *dxhnd) getFilRetrieval(bsb *ctbstore.TempBsb, r *http.Request, ma addre
 		bbs := ctbstore.NewBlocking(bstore.Adapt(cbs))
 		cbs = bbs
 
-		storeid, err := h.apiBss.MakeRemoteBstore(context.TODO(), ctbstore.NewCtxWrap(cbs, ctbstore.WithNoBlock))
-		if err != nil {
-			if err := tbs.Release(); err != nil {
-				log.Errorw("release temp store", "error")
-			}
-			return cid.Cid{}, nil, nil, nil, err
-		}
+		retBs := ctbstore.NewCtxWrap(cbs, ctbstore.WithNoBlock)
 
-		eref, done, err := h.retrieveFil(r.Context(), &storeid, ma, pcid, dcid, &sel, func() {
+		done, err := h.retrieveFil(r.Context(), retBs, ma, pcid, dcid, &sel, func() {
 			bbs.Finalize()
 			if err := tbs.Release(); err != nil {
 				log.Errorw("release temp store", "error")
@@ -104,11 +96,6 @@ func (h *dxhnd) getFilRetrieval(bsb *ctbstore.TempBsb, r *http.Request, ma addre
 			}
 			return cid.Undef, nil, nil, nil, xerrors.Errorf("retrieve: %w", err)
 		}
-
-		eref.DAGs = append(eref.DAGs, lapi.DagSpec{
-			DataSelector:      &sel,
-			ExportMerkleProof: true,
-		})
 
 		bs := bstore.NewTieredBstore(cbs, bstore.NewMemory())
 		ds := merkledag.NewDAGService(blockservice.New(bs, offline.Exchange(bs)))
@@ -170,168 +157,67 @@ const (
 	RetrResRetrievalTimeout
 )
 
-func (h *dxhnd) retrieveFil(ctx context.Context, apiStore *lapi.RemoteStoreID, minerAddr address.Address, pieceCid, file cid.Cid, sel *lapi.Selector, retrDone func()) (*lapi.ExportRef, func(), error) {
-	payer, err := h.api.WalletDefaultAddress(ctx)
+func (h *dxhnd) retrieveFil(ctx context.Context, apiStore blockstore.Blockstore, minerAddr address.Address, pieceCid, file cid.Cid, sel *lapi.Selector, retrDone func()) (func(), error) {
+	maddr, err := GetAddrInfo(ctx, h.api, minerAddr)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	var offer lapi.QueryOffer
-	{ // Directed retrieval
-		offer, err = h.api.ClientMinerQueryOffer(ctx, minerAddr, file, &pieceCid)
-		if err != nil {
-			h.trackerFil.RecordRetrieval(minerAddr, fmt.Errorf("queryoffer error: %s", err), RetrResQueryOfferErr, 0, pieceCid.String())
-			return nil, nil, xerrors.Errorf("offer: %w", err)
-		}
-	}
-	if offer.Err != "" {
-		h.trackerFil.RecordRetrieval(minerAddr, fmt.Errorf("offer error: %s", offer.Err), RetrResOfferError, 0, pieceCid.String())
-		return nil, nil, fmt.Errorf("offer error: %s", offer.Err)
+	host, err := host.InitHost(ctx, []libp2p.Option{})
+	if err != nil {
+		return nil, xerrors.Errorf("init temp host: %w", err)
 	}
 
-	maxPrice := big.Zero()
-	//maxPrice := big.NewInt(6818260582400)
-
-	if offer.MinPrice.GreaterThan(maxPrice) {
-		err := xerrors.Errorf("failed to find offer satisfying maxPrice: %s (min %s, %s)", maxPrice, offer.MinPrice, types.FIL(offer.MinPrice))
-		h.trackerFil.RecordRetrieval(minerAddr, err, RetrResPriceTooHigh, 0, pieceCid.String())
-		return nil, nil, err
+	lassie, err := lassie.NewLassie(ctx, lassie.WithHost(host), lassie.WithProviderAllowList(map[peer.ID]bool{}),
+		lassie.WithFinder(retriever.NewDirectCandidateFinder(host, []peer.AddrInfo{*maddr})))
+	if err != nil {
+		return nil, xerrors.Errorf("start lassie: %w", err)
 	}
 
-	o := offer.Order(payer)
-	o.DataSelector = sel
-	o.RemoteStore = apiStore
+	uselessWrapperStore := &ctbstore.WhyDoesThisNeedToExistBS{
+		TBS: apiStore,
+	}
+
+	linkSystem := cidlink.DefaultLinkSystem()
+	linkSystem.SetWriteStorage(uselessWrapperStore)
+	linkSystem.SetReadStorage(uselessWrapperStore)
+	linkSystem.TrustedStorage = true
+	unixfsnode.AddUnixFSReificationToLinkSystem(&linkSystem)
+
+	rid, err := types2.NewRetrievalID()
+	if err != nil {
+		return nil, err
+	}
+
+	rsn, err := selectorparse.ParseJSONSelector(string(*sel))
+	if err != nil {
+		return nil, xerrors.Errorf("failed to parse json-selector '%s': %w", *sel, err)
+	}
+
+	request := types2.RetrievalRequest{
+		RetrievalID: rid,
+		Cid:         file,
+		Selector:    rsn,
+		LinkSystem:  linkSystem,
+	}
+
+	request.PreloadLinkSystem = cidlink.DefaultLinkSystem()
+	request.PreloadLinkSystem.SetReadStorage(uselessWrapperStore)
+	request.PreloadLinkSystem.SetWriteStorage(uselessWrapperStore)
+	request.PreloadLinkSystem.TrustedStorage = true
 
 	ctx, cancel := context.WithCancel(ctx)
 
-	subscribeEvents := h.filRetrPs.Sub("events")
-	retrievalRes, err := h.api.ClientRetrieve(ctx, o)
-	if err != nil {
-		go func() {
-			// Unsub will drain subscribeEvents, but not hard enough for our needs
-			for range subscribeEvents {
-			}
-		}()
-		h.filRetrPs.Unsub(subscribeEvents, "events")
-		cancel()
-		h.trackerFil.RecordRetrieval(minerAddr, fmt.Errorf("retrieval setup error: %s", err), RetrResRetrievalSetupErr, 0, pieceCid.String())
-		return nil, nil, xerrors.Errorf("error setting up retrieval: %w", err)
-	}
-
-	log := log.With("id", retrievalRes.DealID, "miner", minerAddr, "file", file, "piece", pieceCid)
-	log.Infow("retrieval started")
-
-	// todo re-sub on id-topic specific channel
-
-	start := time.Now()
-	resCh := make(chan error, 1)
-	var resSent bool
-
-	var retrCode = RetrResSuccess
-
-	var data int64
-
 	go func() {
-		defer func() {
-			h.filRetrPs.Unsub(subscribeEvents, "events")
-			if retrDone != nil {
-				retrDone()
-			}
-		}()
-		defer cancel()
-
-		for {
-			var evt lapi.RetrievalInfo
-			select {
-			case <-ctx.Done():
-				if !resSent {
-					go func() {
-						err := h.api.ClientCancelRetrievalDeal(context.Background(), retrievalRes.DealID)
-						if err != nil {
-							log.Errorw("cancelling deal failed", "error", err)
-						}
-					}()
-				}
-
-				retrCode = RetrResRetrievalTimeout
-				resCh <- xerrors.New("Retrieval Timed Out")
-
-				log.Infow("retrieval done", "reason", "timed out", "duration", time.Since(start))
-				return
-			case evti := <-subscribeEvents:
-				evt = evti.(lapi.RetrievalInfo)
-				if evt.ID != retrievalRes.DealID {
-					// we can't check the deal ID ahead of time because:
-					// 1. We need to subscribe before retrieving.
-					// 2. We won't know the deal ID until after retrieving.
-					continue
-				}
-			}
-
-			event := "New"
-			if evt.Event != nil {
-				event = retrievalmarket.ClientEvents[*evt.Event]
-			}
-
-			atomic.StoreInt64(&data, int64(evt.BytesReceived))
-
-			fmt.Printf("Recv %s, Paid %s, %s (%s), %s\n",
-				types.SizeStr(types.NewInt(evt.BytesReceived)),
-				types.FIL(evt.TotalPaid),
-				strings.TrimPrefix(event, "ClientEvent"),
-				strings.TrimPrefix(retrievalmarket.DealStatuses[evt.Status], "DealStatus"),
-				time.Now().Sub(start).Truncate(time.Millisecond),
-			)
-
-			switch evt.Status {
-			case retrievalmarket.DealStatusOngoing:
-				if apiStore != nil && !resSent {
-					resCh <- nil
-					resSent = true
-				}
-			case retrievalmarket.DealStatusCompleted:
-				if !resSent {
-					resCh <- nil
-				}
-				log.Infow("retrieval done", "reason", "completed", "duration", time.Since(start))
-				return
-			case retrievalmarket.DealStatusRejected:
-				if !resSent {
-					retrCode = RetrResRetrievalRejected
-					resCh <- xerrors.Errorf("Retrieval Proposal Rejected: %s", evt.Message)
-				}
-				log.Infow("retrieval done", "reason", "rejected", "duration", time.Since(start))
-				return
-			case
-				retrievalmarket.DealStatusDealNotFound,
-				retrievalmarket.DealStatusErrored:
-				if !resSent {
-					retrCode = RetrResRetrievalErr
-					resCh <- xerrors.Errorf("Retrieval Error: %s", evt.Message)
-				}
-				log.Infow("retrieval done", "reason", "errored/not found", "duration", time.Since(start))
-				return
-			}
+		stats, err := lassie.Fetch(ctx, request)
+		if err != nil {
+			log.Errorw("lassie fetch", "error", err)
 		}
+		_ = stats
 	}()
 
-	err = <-resCh
-	if err != nil {
-		h.trackerFil.RecordRetrieval(minerAddr, err, retrCode, data, pieceCid.String())
-		return nil, nil, err
-	}
-
-	eref := &lapi.ExportRef{
-		Root:   file,
-		DealID: retrievalRes.DealID,
-	}
-	return eref, func() {
-		h.trackerFil.RecordRetrieval(minerAddr, nil, retrCode, atomic.LoadInt64(&data), pieceCid.String())
-
-		err := h.api.ClientCancelRetrievalDeal(context.Background(), retrievalRes.DealID)
-		if err != nil {
-			log.Debugw("cancelling deal failed", "error", err)
-		}
+	return func() {
+		cancel()
 	}, nil
 }
 
@@ -502,4 +388,31 @@ func unixToPathSeg(is string) string {
 	}
 
 	return "~~~" + is[1:]
+}
+
+func GetAddrInfo(ctx context.Context, api lapi.Gateway, maddr address.Address) (*peer.AddrInfo, error) {
+	minfo, err := api.StateMinerInfo(ctx, maddr, types.EmptyTSK)
+	if err != nil {
+		return nil, err
+	}
+	if minfo.PeerId == nil {
+		return nil, fmt.Errorf("storage provider %s has no peer ID set on-chain", maddr)
+	}
+
+	var maddrs []multiaddr.Multiaddr
+	for _, mma := range minfo.Multiaddrs {
+		ma, err := multiaddr.NewMultiaddrBytes(mma)
+		if err != nil {
+			return nil, fmt.Errorf("storage provider %s had invalid multiaddrs in their info: %w", maddr, err)
+		}
+		maddrs = append(maddrs, ma)
+	}
+	if len(maddrs) == 0 {
+		return nil, fmt.Errorf("storage provider %s has no multiaddrs set on-chain", maddr)
+	}
+
+	return &peer.AddrInfo{
+		ID:    *minfo.PeerId,
+		Addrs: maddrs,
+	}, nil
 }

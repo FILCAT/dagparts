@@ -29,7 +29,6 @@ import (
 	"github.com/ipld/go-ipld-prime/traversal/selector/builder"
 	"golang.org/x/xerrors"
 
-	"github.com/filecoin-project/go-fil-markets/storagemarket"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/builtin/v9/market"
 
@@ -169,8 +168,8 @@ func (h *dxhnd) handleDeals(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)
 	data := map[string]interface{}{
-		"deals":             deals,
-		"StorageDealActive": storagemarket.StorageDealActive,
+		"deals": deals,
+		//"StorageDealActive": storagemarket.StorageDealActive,
 	}
 	if err := tpl.Execute(w, data); err != nil {
 		fmt.Println(err)
