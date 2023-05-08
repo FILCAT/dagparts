@@ -56,4 +56,8 @@ func (c *CtxWrap) DeleteMany(ctx context.Context, cids []cid.Cid) error {
 	return c.sub.DeleteMany(c.wrapFunc(ctx), cids)
 }
 
+func (c *CtxWrap) Flush(ctx context.Context) error {
+	return nil
+}
+
 var _ blockstore.Blockstore = &CtxWrap{}

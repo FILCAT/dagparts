@@ -189,6 +189,10 @@ func (b *BlockReadBs) View(ctx context.Context, c cid.Cid, callback func([]byte)
 	return err
 }
 
+func (b *BlockReadBs) Flush(ctx context.Context) error {
+	return nil
+}
+
 func (b *BlockReadBs) DeleteMany(ctx context.Context, cids []cid.Cid) error {
 	return b.DeleteMany(ctx, cids)
 }

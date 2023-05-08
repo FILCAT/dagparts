@@ -94,4 +94,8 @@ func (p *PargetBs) DeleteMany(ctx context.Context, cids []cid.Cid) error {
 	panic("implement me")
 }
 
+func (p *PargetBs) Flush(ctx context.Context) error {
+	return nil
+}
+
 var _ bstore.Blockstore = &PargetBs{}
